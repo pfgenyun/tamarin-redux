@@ -114,11 +114,11 @@ namespace MMgc
 
         // The value of ZCT_CAPACITY is derived from on a block size of 4096; this
         // assert keeps us honest.  Talk to Lars if you get into trouble here.
-        GCAssert(GCHeap::kBlockSize == 4096);
+        GCAssert(GCHeap::kBlockSize == 4096 *4);
 
         // This invariant is stronger than we need; we only need for the ZCT capacity
         // to divide evenly into blocks on both 32-bit and 64-bit systems.
-        GCAssert(RCObject::ZCT_CAPACITY == 0x100000U);
+        GCAssert(RCObject::ZCT_CAPACITY == 0x10000000U);
 
         const uint32_t numblocks = RCObject::ZCT_CAPACITY / CAPACITY(RCObject**) / CAPACITY(RCObject***);
 

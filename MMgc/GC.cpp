@@ -197,7 +197,7 @@ namespace MMgc
         //
         // Also it appears that some DEBUG-mode guards in SetPageMapValue,
         // GetPageMapValue, ClearPageMapValue know that the block size is 4096.
-        GCAssert(GCHeap::kBlockSize == 4096);
+        GCAssert(GCHeap::kBlockSize == 4096 * 4);
         
         GCAssert(!(greedy && incremental));
         zct.SetGC(this);
@@ -1720,6 +1720,7 @@ namespace MMgc
     bool GC::IsPointerIntoGCObject(const void *item)
     {
         int bits = GetPageMapValueGuarded((uintptr_t)item);
+//        printf("item: %x, bits:%d\n", item, bits);
         switch(bits) {
             case PageMap::kGCAllocPage:
                 return GCAlloc::IsPointerIntoGCObject(item);

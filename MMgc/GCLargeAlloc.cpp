@@ -74,7 +74,7 @@ namespace MMgc
             block->size = computedSize;
             block->bibopTag = 0;
 #ifdef MMGC_FASTBITS
-            block->bitsShift = 12;     // Always use bits[0]
+            block->bitsShift = 14;     // Always use bits[0]
 #endif
             block->containsPointers = ((flags&GC::kContainsPointers) != 0) ? 1 : 0;
             block->rcobject = ((flags&GC::kRCObject) != 0) ? 1 : 0;

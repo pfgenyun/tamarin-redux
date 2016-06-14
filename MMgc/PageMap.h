@@ -38,9 +38,9 @@ namespace MMgc
         // pagemap structures themselves.)
         // Short term: keep PageMap::kPageSize == GCHeap::kBlockSize
         // Long term: allow block size to be multiple of page size.
-        const static uint32_t kPageSize  = 4096;
+        const static uint32_t kPageSize  = 4096 * 4;
 
-        const static uint32_t kPageShift = 12;
+        const static uint32_t kPageShift = 14;
         MMGC_STATIC_ASSERT( (1 << kPageShift) == kPageSize );
 
         // PageMapBase collects a few members shared amongst all page maps
@@ -200,7 +200,7 @@ namespace MMgc
             // sparsely structured, to cover 32-bit address range.
         protected:
             static const uint32_t tier1_nbits = 6;
-            static const uint32_t tier2_nbits = 12;
+            static const uint32_t tier2_nbits = 14;
 
             // 12 : kPageShift, covers 4096 byte page
             //  2 : index a bit-pair in a byte

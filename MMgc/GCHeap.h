@@ -243,8 +243,8 @@ namespace MMgc
         // -- Constants
 
         /** Size of a block */
-        const static uint32_t kBlockSize = 4096;
-        const static uint32_t kBlockShift = 12;
+        const static uint32_t kBlockSize = 4096 * 4;
+        const static uint32_t kBlockShift = 14;
         const static uintptr_t kBlockMask = ~(uintptr_t(kBlockSize) - 1);   // Clear lower 12 bits
         const static uintptr_t kOffsetMask = (uintptr_t(kBlockSize) - 1);   // Clear upper 20 or 52 bits
 

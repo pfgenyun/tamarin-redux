@@ -120,7 +120,7 @@ namespace avmplus
         const Atom unreachableAtom = kUnusedAtomTag;
         /*@}*/
 
-        const static uint32_t kBibopBlockSize = 4096;         // This must be the same as GCHeap::kBlockSize, we check that in atom.cpp
+        const static uint32_t kBibopBlockSize = 4096 * 4;         // This must be the same as GCHeap::kBlockSize, we check that in atom.cpp
 
         /**
          * @name Useful constants for manipulating atoms

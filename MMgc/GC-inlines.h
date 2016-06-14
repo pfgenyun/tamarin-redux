@@ -339,7 +339,7 @@ namespace MMgc
     REALLY_INLINE gcbits_t& GC::GetGCBits(const void *realptr)
     {
         GCBlockHeader* block = GetBlockHeader(realptr);
-        return block->bits[(uintptr_t(realptr)& 0xFFF) >> block->bitsShift];
+        return block->bits[(uintptr_t(realptr)& 0x3FFF) >> block->bitsShift];
     }
 #else
     /*static*/

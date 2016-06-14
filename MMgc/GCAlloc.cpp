@@ -1243,8 +1243,18 @@ namespace MMgc
         // Contorted code allows for debugging, don't "optimize" this
         GCBlock *block = GetBlock(item);
         bool retval = false;
-        if(item >= block->items)
+//        printf("GCAlloc::IsPointerIntoGCObject : item :%x > block->items:%x \n", item, block->items);
+        if(item >= block->items){
             retval = (GC::GetGCBits(block->items + GetObjectIndex(block, item) * ((GCAlloc*)block->alloc)->m_itemSize) & kFreelist) != kFreelist;
+//            const void *tmp0 = block->items;
+//            int tmp1 = GetObjectIndex(block, item); 
+//            int tmp2 =  ((GCAlloc*)block->alloc)->m_itemSize;
+//            int tmp3 = GC::GetGCBits(tmp0 + tmp1 * tmp2);
+//            int tmp4 = tmp3 & kFreelist;
+//            retval = (tmp4 != kFreelist);
+//            printf("tmp0:%d  tmp1:%d  tmp2:%d  tmp3:%d  tmp4:%d  kFreelist:%d\n", tmp0, tmp1, tmp2, tmp3, tmp4, kFreelist);
+        }
+//        printf("GCAlloc::IsPointerIntoGCObject : retval: %d\n", retval);
         return retval;
     }
     

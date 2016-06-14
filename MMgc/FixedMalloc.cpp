@@ -114,7 +114,7 @@ namespace MMgc
     {
         // The size tables above are derived based on a block size of 4096; this
         // assert keeps us honest.  Talk to Lars if you get into trouble here.
-        GCAssert(GCHeap::kBlockSize == 4096);
+        GCAssert(GCHeap::kBlockSize == 4096 * 4);
         
         m_heap = heap;
         numLargeBlocks = 0;

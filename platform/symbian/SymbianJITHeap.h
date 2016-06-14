@@ -35,7 +35,7 @@ private:
     {
         kMaxBitLookup = 256,
         kBitsInTUint = 32,
-        kPageSize = 4096,
+        kPageSize = 4096 * 4,
         kMaxHeapSize = kPageSize*16384, // 64Mb, should be enough for Symbian for now
         kHeapAdjustSize  = kPageSize*8, // it is likely to be cheaper to not adjust after each allocation
         kMaxMap = kMaxHeapSize / kPageSize / kBitsInTUint // kMaxMap is 512 when kMaxHeapSize is 64Mb

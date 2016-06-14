@@ -920,7 +920,8 @@ namespace MMgc
         static const uint32_t STACK_PIN_SHIFT    = 29;
         static const uint32_t RCBITS             = 0x000000FF;          // 8 bits for the reference count
         static const uint32_t ZCT_INDEX          = 0x0FFFFF00;          // 20 bits for the ZCT index
-        static const uint32_t ZCT_CAPACITY       = (ZCT_INDEX>>8) + 1;
+        //static const uint32_t ZCT_CAPACITY       = (ZCT_INDEX>>8) + 1;
+        static const uint32_t ZCT_CAPACITY       = 0x10000000u;
 
         uint32_t composite;
 #ifdef MMGC_RC_HISTORY
