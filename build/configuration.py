@@ -36,6 +36,10 @@ def _configGuess(options):
     cputest = build.process.run_for_output(['uname', '-m'])
     return _configSub(ostest, cputest, options)
 
+def _getOsBit():
+    bits = build.process.run_for_output(['getconf', 'LONG_BIT'])
+    return bits.strip()
+
 def _configSub(ostest, cputest, options):
     if ostest.startswith('win') or ostest.startswith('cygwin'):
         os = 'windows'
@@ -68,12 +72,14 @@ def _configSub(ostest, cputest, options):
     elif re.search('thumb2', cputest):
         cpu = 'thumb2'
     elif re.search('mips', cputest):
-        cpu = 'mips'
+        if _getOsBit() == "32":
+          cpu = 'mips'
+        elif _getOsBit() == "64":
+          cpu = 'mips64'
     elif re.search('sh4', cputest):
         cpu = 'sh4'
     else:
         raise Exception('Unrecognized CPU: ' + cputest)
-
     return (os, cpu)
 
 class Configuration:
@@ -283,7 +289,13 @@ class Configuration:
                 'MKPROGRAM'    : '$(CXX) -o $(1)'
                 })
             if self._target[1] == "mips":
-                self._acvars.update({'CXXFLAGS' : ''})
+                self._acvars.update({'CXXFLAGS' : '-mabi=32'})
+                self._acvars.update({'CPPFLAGS' : '-mabi=32'})
+                self._acvars.update({'LDFLAGS' : ''})
+                self._acvars.update({'zlib_EXTRA_CFLAGS' : ''})
+            if self._target[1] == "mips64":
+                self._acvars.update({'CXXFLAGS' : '-mabi=64'})
+                self._acvars.update({'CPPFLAGS' : '-mabi=64'})
                 self._acvars.update({'LDFLAGS' : ''})
                 self._acvars.update({'zlib_EXTRA_CFLAGS' : ''})
 

@@ -41,6 +41,10 @@ ifeq (mips,$(TARGET_CPU))
 nanojit_cpu_cxxsrc := NativeMIPS.cpp
 endif
 
+ifeq (mips64,$(TARGET_CPU))
+nanojit_cpu_cxxsrc := NativeMIPS64.cpp
+endif
+
 avmplus_CXXSRCS := $(avmplus_CXXSRCS) \
   $(curdir)/Allocator.cpp \
   $(curdir)/Assembler.cpp \

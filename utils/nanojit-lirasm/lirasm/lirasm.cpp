@@ -2826,6 +2826,8 @@ processCmdLine(int argc, char **argv, CmdLineOptions& opts)
                 "sparc";
 #elif defined NANOJIT_MIPS
                 "mips";
+#elif defined NANOJIT_MIPS64
+                "mips64";
 #elif defined NANOJIT_SH4
                 "sh4";
 #else
@@ -2875,6 +2877,8 @@ processCmdLine(int argc, char **argv, CmdLineOptions& opts)
             arm_vfp = false;
         }
 #elif defined NANOJIT_MIPS
+        else if (arg == "--show-float") {
+#elif defined NANOJIT_MIPS64
         else if (arg == "--show-float") {
 #if NJ_SOFTFLOAT_SUPPORTED
               cout << "softfloat" << "\n";

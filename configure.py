@@ -92,7 +92,7 @@ def _setGCCVersionedFlags(FLAGS, MAJOR_VERSION, MINOR_VERSION, current_cpu):
     # warnings have been updated to try to include all those enabled by current Flash/AIR builds -- disable with caution, or risk integration pain
     if MAJOR_VERSION >= 4:
         FLAGS += "-Wstrict-null-sentinel "
-        if current_cpu == 'mips':
+        if (current_cpu == 'mips' or current_cpu == 'mips64'):
             FLAGS += "-Wstrict-aliasing=0 "
         elif (MAJOR_VERSION == 4 and MINOR_VERSION <= 2): # 4.0 - 4.2
             # Bugzilla 654996: -Werror for gcc prior to 4.3 can _usually_ be
@@ -532,6 +532,9 @@ elif cpu == "arm":
     # we detect this in core/avmbuild.h and MMgc/*build.h
     None
 elif cpu == "mips":
+    # we detect this in core/avmbuild.h and MMgc/*build.h
+    None
+elif cpu == "mips64":
     # we detect this in core/avmbuild.h and MMgc/*build.h
     None
 elif cpu == "sh4":

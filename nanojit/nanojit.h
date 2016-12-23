@@ -30,6 +30,8 @@
     #define NANOJIT_SH4
 #elif defined AVMPLUS_MIPS
     #define NANOJIT_MIPS
+#elif defined AVMPLUS_MIPS64
+    #define NANOJIT_MIPS64
 #else
     #error "unknown nanojit architecture"
 #endif
