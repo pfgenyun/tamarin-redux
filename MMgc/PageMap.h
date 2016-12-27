@@ -274,7 +274,7 @@ namespace MMgc
             // remaining tiers are allocated in page-sized units.
             static const uint32_t tier1_nbits =  9;
             static const uint32_t tier2_nbits =  9;
-            static const uint32_t tier3_nbits = 13;
+            static const uint32_t tier3_nbits = 15;
 
             // 12 : covers 4096 byte page
             //  2 : index a bit-pair in a byte
