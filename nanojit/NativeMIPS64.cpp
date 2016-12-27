@@ -53,7 +53,7 @@ namespace nanojit
     };
 #endif
 
-    const Register RegAlloc::argRegs[] = { A0, A1, A2, A3 };
+    const Register RegAlloc::argRegs[] = { A0, A1, A2, A3 };  //TODO ABI64
     const Register RegAlloc::retRegs[] = { V0, V1 };
     const Register RegAlloc::savedRegs[] = {
         S0, S1, S2, S3, S4, S5, S6, S7,
@@ -196,6 +196,14 @@ namespace nanojit
         }
 #endif
         asm_li32(r, imm);
+    }
+
+    void Assembler::asm_liAddress(Register r, int64_t imm)
+    {
+        ADDIU(r, r, imm & 0xffff);
+        DSLL(r, r, 16);
+        ORI(r, r, (imm>>16) & 0xffff);
+        LUI(r, (imm>>32) & 0xffff);
     }
 
     // 64 bit immediate load to a register pair
@@ -1464,8 +1472,8 @@ namespace nanojit
         }
     }
 
-#define SEG(addr) (uint32_t(addr) & 0xf0000000)
-#define SEGOFFS(addr) (uint32_t(addr) & 0x0fffffff)
+#define SEG(addr) (uint64_t(addr) & 0xf0000000)
+#define SEGOFFS(addr) (uint64_t(addr) & 0x0fffffff)
 
 
     // Check that the branch target is in range
@@ -1519,24 +1527,26 @@ namespace nanojit
 
                 }
                 else {
-                    //  [linkedinstructions]
-                    //  bxxx trampoline
-                    //   lui $ra,%hi(targ)
-                    //  ...
-                    // trampoline:
-                    //  addiu $ra,%lo(targ)
-                    //  jr $ra
-                    //   nop
+                    
+                    if (uint64_t(targ) >> 32 == 0) {
+                        underrunProtect(5 * 4);             // keep bxx and trampoline together
+    
+                        LUI(RA,(uint64_t(targ)>> 16) & 0xffff);         // delay slot
+    
+                        // NB trampoline code is emitted in the correct order
+                        trampORI(RA, RA, uint64_t(targ) & 0xffff);
+                        trampJR(RA);
+                        trampNOP();                         // trampoline delay slot
+                    } else {
+                        underrunProtect(7 * 4);
+                        LUI(RA,(uint64_t(targ)>>32) & 0xffff);
 
-                    underrunProtect(5 * 4);             // keep bxx and trampoline together
-
-                    LUI(RA,hi(uint32_t(targ)));         // delay slot
-
-                    // NB trampoline code is emitted in the correct order
-                    trampADDIU(RA, RA, lo(uint32_t(targ)));
-                    trampJR(RA);
-                    trampNOP();                         // trampoline delay slot
-
+                        trampORI(RA, RA, (uint64_t(targ)>>16) & 0xffff);
+                        trampDSLL(RA, RA, 16);
+                        trampORI(RA, RA, uint64_t(targ) & 0xffff);
+                        trampJR(RA);
+                        trampNOP();
+                    }
                 }
             }
             else {
@@ -1545,10 +1555,12 @@ namespace nanojit
                 // with branch to target in which case the trampoline will be abandoned
                 // Fixup handled in nPatchBranch
 
-                underrunProtect(5 * 4);                 // keep bxx and trampoline together
+                underrunProtect(7 * 4);                 // keep bxx and trampoline together
 
                 NOP();                                  // delay slot
 
+                trampNOP();
+                trampNOP();
                 trampNOP();
                 trampNOP();
                 trampNOP();
@@ -1766,7 +1778,7 @@ namespace nanojit
             if (bdelay)
                 NOP();
             JR(RA);
-            asm_li(RA, (uint32_t)targ);
+            asm_liAddress(RA, (int64_t)targ);
         }
         TAG("asm_j(targ=%p) bdelay=%d", targ);
     }
@@ -1936,6 +1948,26 @@ namespace nanojit
         TAG("asm_call(ins=%p{%s})", ins, lirNames[ins->opcode()]);
     }
 
+    void
+    Assembler::asm_immq(LIns* ins)
+    {
+    }
+
+    void
+    Assembler::asm_q2d(LIns* ins)
+    {
+    }
+
+    void
+    Assembler::asm_dasq(LIns* ins)
+    {
+    }
+
+    void
+    Assembler::asm_qasd(LIns* ins)
+    {
+    }
+
     Register
     RegAlloc::nRegisterAllocFromSet(RegisterMask set)
     {
@@ -1998,9 +2030,11 @@ namespace nanojit
                     // ori $at,target & 0xffff
                     // jr $at
                     //  nop
-                    branch[1] = U_FORMAT(OP_LUI, 0, GPR(AT), hi(uint32_t(target)));
-                    tramp[0] = U_FORMAT(OP_ADDIU, GPR(AT), GPR(AT), lo(uint32_t(target)));
-                    tramp[1] = R_FORMAT(OP_SPECIAL, GPR(AT), 0, 0, 0, SPECIAL_JR);
+                    branch[1] = U_FORMAT(OP_LUI, 0, GPR(AT), ((int64_t)target >> 32) & 0xffff);
+                    tramp[0] = U_FORMAT(OP_ORI, GPR(AT), GPR(AT), ((int64_t)target>>16) & 0xffff);
+                    tramp[1] = R_FORMAT(OP_SPECIAL, 0, GPR(AT), GPR(AT), 16, SPECIAL_DSLL);
+                    tramp[2] = U_FORMAT(OP_ORI, GPR(AT), GPR(AT), (int64_t)target & 0xffff);
+                    tramp[3] = R_FORMAT(OP_SPECIAL, GPR(AT), 0, 0, 0, SPECIAL_JR);
                 }
             }
         }
@@ -2040,9 +2074,11 @@ namespace nanojit
             // j      _epilogue
             //  addiu $v0,%lo(lr)
             underrunProtect(2 * 4);     // j + branch delay
-            ADDIU(V0, V0, lo(int32_t(lr)));
+            ORI(V0, V0, int64_t(lr) & 0xffff);
             asm_j(_epilogue, false);
-            LUI(V0, hi(int32_t(lr)));
+            DSLL(V0, V0, 16);
+            ORI(V0, V0, (int64_t(lr) >> 16) & 0xffff);
+            LUI(V0, (int64_t(lr) >> 32) & 0xffff);
             lr->jmp = _nIns;
         }
 
@@ -2053,11 +2089,20 @@ namespace nanojit
                 // lw    $at,%lo(profCount)(fp)
                 // addiu $at,1
                 // sw    $at,%lo(profCount)(fp)
-                uint32_t profCount = uint32_t(&guard->record()->profCount);
-                SW(AT, lo(profCount), FP);
-                ADDIU(AT, AT, 1);
-                LW(AT, lo(profCount), FP);
-                LUI(FP, hi(profCount));
+                // uint32_t profCount = uint32_t(&guard->record()->profCount);
+                // SW(AT, lo(profCount), FP);
+                // ADDIU(AT, AT, 1);
+                // LW(AT, lo(profCount), FP);
+                // LUI(FP, hi(profCount));
+                uint64_t profCount = uint64_t(&guard->record()->profCount);
+                SD(AT, profCount & 0xffff, FP);
+                DADDIU(AT, AT, 1);
+                LD(AT, profCount & 0xffff, FP);
+                DSLL(FP, FP, 16);
+                ORI(FP, FP, (profCount >> 16) & 0xffff);
+                DSLL(FP, FP, 16);
+                ORI(FP, FP, (profCount >> 32) & 0xffff);
+                LUI(FP, (profCount >> 48) & 0xffff);
             }
         )
 

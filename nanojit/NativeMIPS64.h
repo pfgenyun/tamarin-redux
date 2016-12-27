@@ -36,7 +36,7 @@ namespace nanojit
 #else
 #define NJ_MAX_STACK_ENTRY 4096
 #endif
-    static const int NJ_ALIGN_STACK = 8;
+    static const int NJ_ALIGN_STACK = 8; // TODO 16 for 64 bit?
 
     typedef uint32_t NIns;                // REQ: Instruction count
     typedef uint64_t RegisterMask;        // REQ: Large enough to hold LastRegNum-FirstRegNum bits
@@ -246,6 +246,7 @@ namespace nanojit {
     void asm_li32(Register r, int32_t imm);                             \
     void asm_li_d(Register fr, int32_t msw, int32_t lsw);               \
     void asm_li(Register r, int32_t imm);                               \
+    void asm_liAddress(Register r, int64_t imm);                               \
     void asm_j(NIns*, bool bdelay);                                     \
     void asm_cmp(LOpcode condop, LIns *a, LIns *b, Register cr);        \
     void asm_move(Register d, Register s);                              \
@@ -321,6 +322,7 @@ namespace nanojit {
 #define OP_BEQ          0x04
 #define OP_BNE          0x05
 #define OP_ADDIU        0x09
+#define OP_DADDIU       25
 #define OP_SLTIU        0x0b
 #define OP_ANDI         0x0c
 #define OP_ORI          0x0d
@@ -386,6 +388,11 @@ namespace nanojit {
 #define SPECIAL_NOR     0x27
 #define SPECIAL_SLT     0x2a
 #define SPECIAL_SLTU    0x2b
+
+// 64 bit
+#define SPECIAL_DSLL    56
+#define OP_LD           55
+#define OP_SD           63
 
 // SPECIAL2: bits 5..0
 #define SPECIAL2_MUL    0x02
@@ -461,6 +468,14 @@ namespace nanojit {
     do { count_alu(); TRAMP(I_FORMAT(OP_ADDIU, GPR(rs), GPR(rt), simm), \
                             "addiu %s, %s, %d", gpn(rt), gpn(rs), simm); } while (0)
 
+#define DADDIU(rt, rs, simm)                                             \
+    do { count_alu(); EMIT(I_FORMAT(OP_DADDIU, GPR(rs), GPR(rt), simm),  \
+                           "daddiu %s, %s, %d", gpn(rt), gpn(rs), simm); } while (0)
+
+#define trampDADDIU(rt, rs, simm)                                        \
+    do { count_alu(); TRAMP(I_FORMAT(OP_DADDIU, GPR(rs), GPR(rt), simm), \
+                            "daddiu %s, %s, %d", gpn(rt), gpn(rs), simm); } while (0)
+
 #define ADDU(rd, rs, rt)                                                \
     do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(rt), GPR(rd), 0, SPECIAL_ADDU), \
                            "addu %s, %s, %s", gpn(rd), gpn(rs), gpn(rt)); } while (0)
@@ -509,7 +524,7 @@ namespace nanojit {
     do { count_br(); EMIT(I_FORMAT(OP_REGIMM, GPR(rs), REGIMM_BLTZ, BOFFSET(targ)), \
                           "bltz %s, %p", gpn(rs), targ); } while (0)
 
-#define JINDEX(dest) ((uint32_t(dest)>>2)&0x03ffffff)
+#define JINDEX(dest) ((uint64_t(dest)>>2)&0x03ffffff)
 
 #define J(dest)                                             \
     do { count_jmp(); EMIT(J_FORMAT(OP_J, JINDEX(dest)),    \
@@ -546,6 +561,9 @@ namespace nanojit {
 
 #define LW(rt, offset, base)                    \
     LDSTGPR(OP_LW, rt, offset, base)
+
+#define LD(rt, offset, base)                    \
+    LDSTGPR(OP_LD, rt, offset, base)
 
 #define MFHI(rd)                                                        \
     do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, 0, 0, GPR(rd), 0, SPECIAL_MFHI), \
@@ -603,6 +621,10 @@ namespace nanojit {
     do { count_alu(); EMIT(U_FORMAT(OP_ORI, GPR(rs), GPR(rt), uimm),    \
                            "ori %s, %s, 0x%x", gpn(rt), gpn(rs), ((uimm)&0xffff)); } while (0)
 
+#define trampORI(rt, rs, uimm)                                               \
+    do { count_alu(); TRAMP(U_FORMAT(OP_ORI, GPR(rs), GPR(rt), uimm),    \
+                           "ori %s, %s, 0x%x", gpn(rt), gpn(rs), ((uimm)&0xffff)); } while (0)
+
 #define SLTIU(rt, rs, simm)                                             \
     do { count_alu(); EMIT(I_FORMAT(OP_SLTIU, GPR(rs), GPR(rt), simm),  \
                            "sltiu %s, %s, %d", gpn(rt), gpn(rs), simm); } while (0)
@@ -617,6 +639,14 @@ namespace nanojit {
 
 #define SLL(rd, rt, sa)                                                 \
     do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, 0, GPR(rt), GPR(rd), sa, SPECIAL_SLL), \
+                           "sll %s, %s, %d", gpn(rd), gpn(rt), sa); } while (0)
+
+#define DSLL(rd, rt, sa)                                                 \
+    do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, 0, GPR(rt), GPR(rd), sa, SPECIAL_DSLL), \
+                           "sll %s, %s, %d", gpn(rd), gpn(rt), sa); } while (0)
+
+#define trampDSLL(rd, rt, sa)                                                 \
+    do { count_alu(); TRAMP(R_FORMAT(OP_SPECIAL, 0, GPR(rt), GPR(rd), sa, SPECIAL_DSLL), \
                            "sll %s, %s, %d", gpn(rd), gpn(rt), sa); } while (0)
 
 #define SLLV(rd, rt, rs)                                                \
@@ -645,6 +675,9 @@ namespace nanojit {
 
 #define SW(rt, offset, base)                    \
     LDSTGPR(OP_SW, rt, offset, base)
+
+#define SD(rt, offset, base)                    \
+    LDSTGPR(OP_SD, rt, offset, base)
 
 #define XOR(rd, rs, rt)                                                 \
     do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(rt), GPR(rd), 0, SPECIAL_XOR), \
