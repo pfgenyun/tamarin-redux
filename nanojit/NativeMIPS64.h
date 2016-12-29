@@ -247,6 +247,7 @@ namespace nanojit {
     void asm_li_d(Register fr, int32_t msw, int32_t lsw);               \
     void asm_li(Register r, int32_t imm);                               \
     void asm_liAddress(Register r, int64_t imm);                               \
+    void asm_li64(Register r, int64_t imm);                               \
     void asm_j(NIns*, bool bdelay);                                     \
     void asm_cmp(LOpcode condop, LIns *a, LIns *b, Register cr);        \
     void asm_move(Register d, Register s);                              \
@@ -266,7 +267,7 @@ namespace nanojit {
 // REQ: Platform specific declarations to include in RegAlloc class
 #define firstAvailableReg(i,c,m) nRegisterAllocFromSet(m)   // custom "firstAvailableReg" implementation
 #define DECLARE_PLATFORM_REGALLOC()                                     \
-    const static Register argRegs[4];                                   \
+    const static Register argRegs[8];                                   \
     const static Register retRegs[2];                                   \
     Register nRegisterAllocFromSet(RegisterMask);
 
@@ -393,6 +394,7 @@ namespace nanojit {
 #define SPECIAL_DSLL    56
 #define OP_LD           55
 #define OP_SD           63
+#define SPECIAL_DADDU   45
 
 // SPECIAL2: bits 5..0
 #define SPECIAL2_MUL    0x02
@@ -479,6 +481,10 @@ namespace nanojit {
 #define ADDU(rd, rs, rt)                                                \
     do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(rt), GPR(rd), 0, SPECIAL_ADDU), \
                            "addu %s, %s, %s", gpn(rd), gpn(rs), gpn(rt)); } while (0)
+
+#define DADDU(rd, rs, rt)                                                \
+    do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(rt), GPR(rd), 0, SPECIAL_DADDU), \
+                           "daddu %s, %s, %s", gpn(rd), gpn(rs), gpn(rt)); } while (0)
 
 #define AND(rd, rs, rt)                                                 \
     do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(rt), GPR(rd), 0, SPECIAL_AND), \
@@ -582,7 +588,7 @@ namespace nanojit {
                            "mult %s, %s", gpn(rs), gpn(rt)); } while (0)
 
 #define MOVE(rd, rs)                                                    \
-    do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(ZERO), GPR(rd), 0, SPECIAL_ADDU), \
+    do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(ZERO), GPR(rd), 0, SPECIAL_DADDU), \
                            "move %s, %s", gpn(rd), gpn(rs)); } while (0)
 
 #define MOVN(rd, rs, rt)                                                \
@@ -741,6 +747,10 @@ namespace nanojit {
 
 #define MFC1(rt, fs)                                                    \
     do { count_fpu(); EMIT(F_FORMAT(OP_COP1, 0, GPR(rt), FPR(fs), FPR(F0), 0), \
+                           "mfc1 %s, %s", gpn(rt), fpn(fs)); } while (0)
+
+#define DMFC1(rt, fs)                                                    \
+    do { count_fpu(); EMIT(F_FORMAT(OP_COP1, 1, GPR(rt), FPR(fs), FPR(F0), 0), \
                            "mfc1 %s, %s", gpn(rt), fpn(fs)); } while (0)
 
 #define MTC1(rt, fs)                                                    \

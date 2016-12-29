@@ -5,6 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nanojit.h"
+#include "stdint.h"
 
 #if defined FEATURE_NANOJIT && defined NANOJIT_MIPS64
 
@@ -53,7 +54,7 @@ namespace nanojit
     };
 #endif
 
-    const Register RegAlloc::argRegs[] = { A0, A1, A2, A3 };  //TODO ABI64
+    const Register RegAlloc::argRegs[] = { A0, A1, A2, A3, T0, T1, T2, T3 };  //TODO ABI64
     const Register RegAlloc::retRegs[] = { V0, V1 };
     const Register RegAlloc::savedRegs[] = {
         S0, S1, S2, S3, S4, S5, S6, S7,
@@ -91,6 +92,22 @@ namespace nanojit
 
     static inline Register lswregpair(Register r) {
         return isLittleEndian() ? r : r+1;
+    }
+
+    static inline bool isInS16(int64_t imm) {
+        return imm >= INT16_MIN && imm <= INT16_MAX; 
+    }
+
+    static inline bool isInU16(int64_t imm) {
+        return imm <= UINT16_MAX;
+    }
+
+    static inline bool isInS32(int64_t imm) {
+        return imm >= INT32_MIN && imm <= INT32_MAX; 
+    }
+
+    static inline bool isInU32(int64_t imm) {
+        return imm <= UINT32_MAX;
     }
 
 // These variables affect the code generator
@@ -175,7 +192,7 @@ namespace nanojit
     void Assembler::asm_li32(Register r, int32_t imm)
     {
         // general case generating a full 32-bit load
-        ADDIU(r, r, lo(imm));
+        DADDIU(r, r, lo(imm));
         LUI(r, hi(imm));
     }
 
@@ -187,7 +204,7 @@ namespace nanojit
             return;
         }
         if (isS16(imm)) {
-            ADDIU(r, ZERO, imm);
+            DADDIU(r, ZERO, imm);
             return;
         }
         if ((imm & 0xffff) == 0) {
@@ -200,10 +217,27 @@ namespace nanojit
 
     void Assembler::asm_liAddress(Register r, int64_t imm)
     {
-        ADDIU(r, r, imm & 0xffff);
+        DADDIU(r, r, imm & 0xffff);
         DSLL(r, r, 16);
         ORI(r, r, (imm>>16) & 0xffff);
         LUI(r, (imm>>32) & 0xffff);
+    }
+
+    void Assembler::asm_li64(Register r, int64_t imm)
+    {
+        if (isInS16(imm)) {
+            DADDIU(r, r, imm & 0xffff);
+        } else if (isInS32(imm)) {
+            ORI(r, r, imm & 0xffff);
+            LUI(r, (imm>>16) & 0xffff); 
+        } else {
+            ORI(r, r, imm & 0xffff);
+            DSLL(r, r, 16);
+            ORI(r, r, (imm>>16) & 0xffff);
+            DSLL(r, r, 16);
+            ORI(r, r, (imm>>32) & 0xffff);
+            LUI(r, (imm>>48) & 0xffff);
+        }
     }
 
     // 64 bit immediate load to a register pair
@@ -262,13 +296,13 @@ namespace nanojit
 #endif
 
         // lui AT,hi(d)
-        // addu AT,rbase
+        // daddu AT,rbase
         // ldst rt,lo(d)(AT)
         if (IsGpReg(rt))
             LDSTGPR(op, rt, lo(dr), AT);
         else
             LDSTFPR(op, rt, lo(dr), AT);
-        ADDU(AT, AT, rbase);
+        DADDU(AT, AT, rbase);
         LUI(AT, hi(dr));
     }
 
@@ -277,8 +311,7 @@ namespace nanojit
 #if !PEDANTIC
         if (isS16(dr) && isS16(dr+4)) {
             if (IsGpReg(r)) {
-                LDSTGPR(store ? OP_SW : OP_LW, r+1, dr+4, rbase);
-                LDSTGPR(store ? OP_SW : OP_LW, r,   dr,   rbase);
+                LDSTGPR(store ? OP_SD : OP_LD, r,   dr,   rbase);
             }
             else {
                 NanoAssert(cpu_has_fpu);
@@ -303,9 +336,8 @@ namespace nanojit
             // addu  $at,$rbase
             // ldsw  $r,  %lo(d)($at)
             // ldst  $r+1,%lo(d+4)($at)
-            LDSTGPR(store ? OP_SW : OP_LW, r+1, lo(dr+4), AT);
-            LDSTGPR(store ? OP_SW : OP_LW, r,   lo(dr), AT);
-            ADDU(AT, AT, rbase);
+            LDSTGPR(store ? OP_SD : OP_LD, r,   lo(dr), AT);
+            DADDU(AT, AT, rbase);
             LUI(AT, hi(dr));
         }
         else {
@@ -324,7 +356,7 @@ namespace nanojit
                 // addu   $at,$rbase
                 // lsdc1  $r,%lo(dr)($at)
                 LDSTFPR(store ? OP_SDC1 : OP_LDC1, r, lo(dr), AT);
-                ADDU(AT, AT, rbase);
+                DADDU(AT, AT, rbase);
                 LUI(AT, hi(dr));
             }
             else {
@@ -334,7 +366,7 @@ namespace nanojit
                 // lswc1 $r+1,%lo(d+MSWOFF)($at)
                 LDSTFPR(store ? OP_SWC1 : OP_LWC1, r+1, lo(dr+mswoff()), AT);
                 LDSTFPR(store ? OP_SWC1 : OP_LWC1, r,   lo(dr+lswoff()), AT);
-                ADDU(AT, AT, rbase);
+                DADDU(AT, AT, rbase);
                 LUI(AT, hi(dr));
             }
         }
@@ -342,7 +374,15 @@ namespace nanojit
 
     void Assembler::asm_store_imm64(LIns *value, int dr, Register rbase)
     {
-        NanoAssert(value->isImmD());
+        NanoAssert(value->isImmD() || value->isImmQ());
+        NanoAssert(isS16(dr) && isS16(dr+4));
+        
+        if (value->isImmQ()) {
+            asm_li64(AT, value->immQ());
+            SD(AT, dr, rbase);
+            return;
+        }
+
         int32_t msw = value->immDhi();
         int32_t lsw = value->immDlo();
 
@@ -350,8 +390,6 @@ namespace nanojit
         // sw $at,off+LSWOFF($rbase)    # may use $0 instead of $at
         // li $at,msw                   # iff (msw != 0) && (msw != lsw)
         // sw $at,off+MSWOFF($rbase)    # may use $0 instead of $at
-
-        NanoAssert(isS16(dr) && isS16(dr+4));
 
         if (lsw == 0)
             SW(ZERO, dr+lswoff(), rbase);
@@ -373,19 +411,21 @@ namespace nanojit
     void Assembler::asm_regarg(ArgType ty, LIns* p, Register r)
     {
         NanoAssert(deprecated_isKnownReg(r));
-        if (ty == ARGTYPE_I || ty == ARGTYPE_UI) {
+        if (ty == ARGTYPE_I || ty == ARGTYPE_UI || ty == ARGTYPE_Q) {
             // arg goes in specific register
             if (p->isImmI())
-                asm_li(r, p->immI());
+                asm_li64(r, p->immI());
+            else if (p->isImmQ())
+                asm_li64(r, p->immQ());
             else {
                 if (p->isExtant()) {
                     if (!p->deprecated_hasKnownReg()) {
                         // load it into the arg reg
                         int d = findMemFor(p);
                         if (p->isop(LIR_allocp))
-                            ADDIU(r, FP, d);
+                            DADDIU(r, FP, d);
                         else
-                            asm_ldst(OP_LW, r, d, FP);
+                            asm_ldst(p->isImmQ()?OP_LD:OP_LW, r, d, FP);
                     }
                     else
                         // it must be in a saved reg
@@ -413,7 +453,7 @@ namespace nanojit
             // push it onto the stack.
             if (!cpu_has_fpu || !isF64) {
                 NanoAssert(IsGpReg(rr));
-                SW(rr, stkd, SP);
+                SD(rr, stkd, SP);
             }
             else {
                 NanoAssert(cpu_has_fpu);
@@ -427,18 +467,16 @@ namespace nanojit
             // memory for it and then copy it onto the stack.
             int d = findMemFor(arg);
             if (!isF64) {
-                SW(AT, stkd, SP);
+                SD(AT, stkd, SP);
                 if (arg->isop(LIR_allocp))
-                    ADDIU(AT, FP, d);
+                    DADDIU(AT, FP, d);
                 else
-                    LW(AT, d, FP);
+                    LD(AT, d, FP);
             }
             else {
                 NanoAssert((stkd & 7) == 0);
-                SW(AT, stkd+4, SP);
-                LW(AT, d+4,    FP);
-                SW(AT, stkd,   SP);
-                LW(AT, d,      FP);
+                SD(AT, stkd,   SP);
+                LD(AT, d,      FP);
             }
         }
     }
@@ -449,8 +487,8 @@ namespace nanojit
     void
     Assembler::asm_arg_64(LIns* arg, Register& r, Register& fr, int& stkd)
     {
-        // The stack offset always be at least aligned to 4 bytes.
-        NanoAssert((stkd & 3) == 0);
+        // The stack offset always be at least aligned to 8 bytes.
+        NanoAssert((stkd & 7) == 0);
 #if NJ_SOFTFLOAT_SUPPORTED
         NanoAssert(arg->isop(LIR_ii2d));
 #else
@@ -460,15 +498,15 @@ namespace nanojit
         // O32 ABI requires that 64-bit arguments are aligned on even-numbered
         // registers, as A0:A1/FA0 or A2:A3/FA1. Use the stack offset to keep track
         // where we are
-        if (stkd & 4) {
-            if (stkd < 16) {
+        if (stkd & 8) {
+            if (stkd < 64) {
                 r = r + 1;
                 fr = fr + 1;
             }
-            stkd += 4;
+            stkd += 8;
         }
 
-        if (stkd < 16) {
+        if (stkd < 64) {
             NanoAssert(fr == FA0 || fr == FA1 || fr == A2);
             if (fr == FA0 || fr == FA1)
                 findSpecificRegFor(arg, fr);
@@ -477,11 +515,10 @@ namespace nanojit
                 // Move it to the integer pair
                 Register fpupair = arg->getReg();
                 Register intpair = fr;
-                MFC1(mswregpair(intpair), fpupair+1); // Odd fpu register contains sign,expt,manthi
-                MFC1(lswregpair(intpair), fpupair);   // Even fpu register contains mantlo
+                DMFC1(intpair, fpupair);   // Even fpu register contains mantlo
             }
-            r = r + 2;
-            fr = fr + 2;
+            r = r + 1;
+            fr = fr + 1;
         }
         else
             asm_stkarg(arg, stkd);
@@ -491,8 +528,8 @@ namespace nanojit
 
     /* Required functions */
 
-#define FRAMESIZE        8
-#define RA_OFFSET        4
+#define FRAMESIZE        16
+#define RA_OFFSET        8
 #define FP_OFFSET        0
 
     void Assembler::asm_store32(LOpcode op, LIns *value, int dr, LIns *base)
@@ -700,8 +737,26 @@ namespace nanojit
 
     void Assembler::asm_load64(LIns *ins)
     {
-        NanoAssert(ins->isD());
+        NanoAssert(ins->isD() || ins->isQ());
 
+        if (ins->isQ()) {
+            LIns*       base = ins->oprnd1();
+            Register    rn = findRegFor(base, GpRegs);
+            int         offset = ins->disp();
+            Register    dd = prepareResultReg(ins, GpRegs);
+
+            if (isInS16(offset)) {
+                LD(dd, offset, rn);
+            } else {
+                LD(dd, 0, AT);
+                DADDU(AT, AT, rn);
+                asm_li32(AT, offset); 
+            }
+            freeResourcesOf(ins);
+            TAG("asm_load64(ins=%p{%s})", ins, lirNames[ins->opcode()]);
+        
+            return;
+        }
         if (cpu_has_fpu) {
             Register    dd;
             LIns*       base = ins->oprnd1();
@@ -743,10 +798,8 @@ namespace nanojit
 
             switch (ins->opcode()) {
             case LIR_ldd:
-                SW(AT, d+4, FP);
-                LW(AT, offset+4, rn);
-                SW(AT, d,   FP);
-                LW(AT, offset,   rn);
+                SD(AT, d,   FP);
+                LD(AT, offset,   rn);
                 break;
             case LIR_ldf2d:
                 NanoAssertMsg(0, "LIR_ldf2d is not yet implemented for soft-float.");
@@ -960,7 +1013,7 @@ namespace nanojit
         assignSavedRegs();
 
         LIns *value = ins->oprnd1();
-        if (ins->isop(LIR_reti)) {
+        if (ins->isop(LIR_retq)) {
             findSpecificRegFor(value, V0);
         }
         else {
@@ -1232,6 +1285,9 @@ namespace nanojit
             case LIR_addi:
                 ADDU(rr, ra, rb);
                 break;
+            case LIR_addq:
+                DADDU(rr, ra, rb);
+                break;
             case LIR_andi:
                 AND(rr, ra, rb);
                 break;
@@ -1327,6 +1383,19 @@ namespace nanojit
 #endif
 
         switch (op) {
+            case LIR_stq:
+                if (1) {
+                    Register rbase = findRegFor(base, GpRegs);
+                    if (value->isImmQ())
+                        asm_store_imm64(value, dr, rbase);
+                    else {
+                        Register gpv = findRegFor(value, GpRegs);
+                        NanoAssert(isS16(dr));
+                        SD(gpv, dr, rbase);
+                    }
+                }
+                break;
+
             case LIR_std:
                 if (cpu_has_fpu) {
                     Register rbase = findRegFor(base, GpRegs);
@@ -1388,9 +1457,9 @@ namespace nanojit
         if (i->isop(LIR_allocp)) {
             d = deprecated_disp(i);
             if (isS16(d))
-                ADDIU(r, FP, d);
+                DADDIU(r, FP, d);
             else {
-                ADDU(r, FP, AT);
+                DADDU(r, FP, AT);
                 asm_li(AT, d);
             }
         }
@@ -1403,7 +1472,7 @@ namespace nanojit
                 asm_ldst64(false, r, d, FP);
             }
             else {
-                asm_ldst(OP_LW, r, d, FP);
+                asm_ldst(OP_LD, r, d, FP);
             }
         }
         TAG("asm_restore(i=%p{%s}, r=%d)", i, lirNames[i->opcode()], r);
@@ -1688,6 +1757,7 @@ namespace nanojit
                 SLT(AT, ra, rb);
                 break;
             case LIR_ltui:
+            case LIR_ltuq:
                 if (branchOnFalse)
                     BEQ(AT, ZERO, btarg);
                 else
@@ -1793,8 +1863,8 @@ namespace nanojit
             asm_ldst64(true, rr, d, FP);
         }
         else {
-            NanoAssert(nWords == 1);
-            asm_ldst(OP_SW, rr, d, FP);
+            NanoAssert(nWords == 1 || nWords == 2);
+            asm_ldst(nWords == 1 ? OP_SW:OP_SD, rr, d, FP);
         }
         TAG("asm_spill(rr=%d, d=%d, quad=%d)", rr, d, nWords == 2);
     }
@@ -1833,15 +1903,15 @@ namespace nanojit
     void
     Assembler::asm_arg(ArgType ty, LIns* arg, Register& r, Register& fr, int& stkd)
     {
-        // The stack offset must always be at least aligned to 4 bytes.
-        NanoAssert((stkd & 3) == 0);
+        // The stack offset must always be at least aligned to 8 bytes.
+        NanoAssert((stkd & 7) == 0);
 
         if (ty == ARGTYPE_D) {
             // This task is fairly complex and so is delegated to asm_arg_64.
             asm_arg_64(arg, r, fr, stkd);
         } else {
-            NanoAssert(ty == ARGTYPE_I || ty == ARGTYPE_UI);
-            if (stkd < 16) {
+            NanoAssert(ty == ARGTYPE_I || ty == ARGTYPE_UI || ty == ARGTYPE_Q);
+            if (stkd < 64) {
                 asm_regarg(ty, arg, r);
                 fr = fr + 1;
                 r = r + 1;
@@ -1851,7 +1921,7 @@ namespace nanojit
             // The o32 ABI calling convention is that if the first arguments
             // is not a double, subsequent double values are passed in integer registers
             fr = r;
-            stkd += 4;
+            stkd += 8;
         }
     }
 
@@ -1894,6 +1964,7 @@ namespace nanojit
 
             switch (op) {
             case LIR_calli:
+            case LIR_callq:
                 rr = RegAlloc::retRegs[0];
                 break;
             case LIR_calld:
@@ -1926,7 +1997,7 @@ namespace nanojit
         if (!indirect)
             // FIXME: If we can tell that we are calling non-PIC
             // (ie JIT) code, we could call direct instead of using t9
-            asm_li(T9, ci->_address);
+            asm_liAddress(T9, ci->_address);
         else
             // Indirect call: we assign the address arg to t9
             // which matches the o32 ABI for calling functions
@@ -1951,6 +2022,9 @@ namespace nanojit
     void
     Assembler::asm_immq(LIns* ins)
     {
+        Register rr = deprecated_prepResultReg(ins, GpRegs);
+        asm_li64(rr, ins->immQ());
+        TAG("asm_immq(ins=%p{%s})", ins, lirNames[ins->opcode()]);
     }
 
     void
@@ -2115,7 +2189,7 @@ namespace nanojit
 
     void Assembler::nBeginAssembly()
     {
-        max_out_args = 16;        // Always reserve space for a0-a3
+        max_out_args = 64;        // Always reserve space for a0-a3
     }
 
     // Increment the 32-bit profiling counter at pCtr, without
@@ -2179,9 +2253,9 @@ namespace nanojit
 
         if (amt) {
             if (isS16(-amt))
-                ADDIU(SP, SP, -amt);
+                DADDIU(SP, SP, -amt);
             else {
-                ADDU(SP, SP, AT);
+                DADDU(SP, SP, AT);
                 asm_li(AT, -amt);
             }
         }
@@ -2189,10 +2263,10 @@ namespace nanojit
         NIns *patchEntry = _nIns; // FIXME: who uses this value and where should it point?
 
         MOVE(FP, SP);
-        SW(FP, FP_OFFSET, SP);
+        SD(FP, FP_OFFSET, SP);
         underrunProtect(2 * 4);         // code page switch could change $ra
-        SW(RA, RA_OFFSET, SP);
-        ADDIU(SP, SP, -FRAMESIZE);
+        SD(RA, RA_OFFSET, SP);
+        DADDIU(SP, SP, -FRAMESIZE);
 
         TAG("genPrologue()");
 
@@ -2210,10 +2284,10 @@ namespace nanojit
          * addiu   $sp,FRAMESIZE
          */
         underrunProtect(3*4);   // lw $ra,RA_OFFSET($sp);j $ra; addiu $sp,FRAMESIZE
-        ADDIU(SP, SP, FRAMESIZE);
+        DADDIU(SP, SP, FRAMESIZE);
         JR(RA);
-        LW(RA, RA_OFFSET, SP);
-        LW(FP, FP_OFFSET, SP);
+        LD(RA, RA_OFFSET, SP);
+        LD(FP, FP_OFFSET, SP);
         MOVE(SP, FP);
 
         TAG("genEpilogue()");
