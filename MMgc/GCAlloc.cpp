@@ -1130,7 +1130,17 @@ namespace MMgc
         uint32_t s = 0;
         uint32_t n = 0;
         uint32_t m = 0;
-        for ( ; n < ( 1 << 13 ) ; s++) {
+        //for ( ; n < ( 1 << 13 ) ; s++) {
+        //1<<13 = 2^13 = 2^12 << 1, when pagesize changed from 4k to 16k, the shft and muli is not correct,
+        //causing the index from GetObjectIndex() is wrong, and causing some test cases can not pass. Ex:
+        //jsbench/Euler.as Avm1 Error: Test Exited with exit code: -4
+        //jsbench/typed/Euler.as Avm1 Error: Test Exited with exit code: -4
+        //jsbench/FFT.as : No metrics returned from test!
+        //jsbench/typed/SOR.as : No metrics returned from test!
+        //acceptance/ecma3 failures:105
+        
+        //fix these cases:change 1<<13 to 1<<15 = 2^15 = 2^14 << 1
+        for ( ; n < ( 1 << 15 ) ; s++) {
             m = n;
             n = ( ( 1 << ( s + 1 ) ) / d ) + 1;
         }

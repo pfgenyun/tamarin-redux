@@ -796,7 +796,7 @@ class PerformanceRuntest(RuntestBase):
                     if self.avm2:
                         if exitcode2!=0:
                             self.finalexitcode=1
-                            self.js_print("%-50s %7s %s" % (testName,'Avm2 Error: Test Exited with exit code:', exitcode))
+                            self.js_print("%-50s %7s %s" % (testName,'Avm2 Error: Test Exited with exit code2:', exitcode2))
                             return
                         else:
                             self.parsePerfTestOutput(f2, resultsDict2)
