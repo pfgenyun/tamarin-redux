@@ -1312,7 +1312,7 @@ namespace nanojit
     void Assembler::asm_store64(LOpcode op, LIns *value, int dr, LIns *base)
     {
         // NanoAssert((dr & 7) == 0);
-#if NANOJIT_64BIT
+#ifdef NANOJIT_64BIT
         NanoAssert (op == LIR_stq || op == LIR_std2f || op == LIR_std);
 #else
         NanoAssert (op == LIR_std2f || op == LIR_std);
