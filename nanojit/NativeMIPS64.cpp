@@ -232,7 +232,7 @@ namespace nanojit
     void Assembler::asm_li64(Register r, int64_t imm)
     {
         if (isInS16(imm)) {
-            DADDIU(r, r, imm & 0xffff);
+            DADDIU(r, ZERO, imm & 0xffff);
         } else if (isInS32(imm)) {
             ORI(r, r, imm & 0xffff);
             LUI(r, (imm>>16) & 0xffff); 
@@ -728,9 +728,21 @@ namespace nanojit
 
 #ifdef NANOJIT_64BIT
     void
-    Assembler::asm_q2i(LIns *)
+    Assembler::asm_q2i(LIns *ins)
     {
-        NanoAssert(0);  // q2i shouldn't occur on 32-bit platforms
+        LIns* a = ins->oprnd1();
+        RegisterMask allow = GpRegs;
+        Register rr = deprecated_prepResultReg(ins, allow);
+        Register ra = a->isInReg() ? a->deprecated_getReg():rr;
+
+        NanoAssert(deprecated_isKnownReg(rr));
+        NanoAssert(deprecated_isKnownReg(ra));
+        allow &= ~rmask(rr);
+        allow &= ~rmask(ra);
+
+        if (ra != rr)
+            SLL(rr, ra, 0);
+
     }
 
     void Assembler::asm_ui2uq(LIns *ins)
@@ -901,6 +913,7 @@ namespace nanojit
 
         NanoAssert(condval->isCmp());
         NanoAssert((ins->isop(LIR_cmovi) && iftrue->isI() && iffalse->isI()) ||
+                   (ins->isop(LIR_cmovq) && iftrue->isQ() && iffalse->isQ()) ||
                    (ins->isop(LIR_cmovd) && iftrue->isD() && iffalse->isD()));
 
         Register rd = prepareResultReg(ins, allow);
@@ -917,7 +930,7 @@ namespace nanojit
             NanoAssert(iffalse->isInReg());
         }
 
-        if (ins->isI()) {
+        if (ins->isI() || ins->isQ()) {
             if (rd == rf)
                 MOVN(rd, rt, AT);
             else if (rd == rt)
@@ -1301,6 +1314,7 @@ namespace nanojit
                 OR(rr, ra, rb);
                 break;
             case LIR_xori:
+            case LIR_xorq:
                 XOR(rr, ra, rb);
                 break;
             case LIR_subxovi:
@@ -1498,6 +1512,7 @@ namespace nanojit
         /* Generate the condition code */
         switch (condop) {
         case LIR_eqi:
+        case LIR_eqq:
             SLTIU(cr,cr,1);
             XOR(cr,ra,rb);
             break;
@@ -2040,16 +2055,19 @@ namespace nanojit
     void
     Assembler::asm_q2d(LIns* ins)
     {
+        printf("error asm_q2d\n");
     }
 
     void
     Assembler::asm_dasq(LIns* ins)
     {
+        printf("error asm_dasq\n");
     }
 
     void
     Assembler::asm_qasd(LIns* ins)
     {
+        printf("error asm_qasd\n");
     }
 
     Register
