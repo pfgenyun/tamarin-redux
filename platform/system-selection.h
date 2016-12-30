@@ -85,8 +85,11 @@
     #define AVMSYSTEM_SPARC  0
   #endif
 
-/*  #if defined(__mips__) || defined(__MIPS__)
+  #if defined(__mips__) || defined(__MIPS__) || defined(__MIPS64) || defined(__mips64)
     #define AVMSYSTEM_MIPS   1
+    #if defined(__MIPS64) || defined(__mips64)
+        #define SIXTYFOURBIT
+    #endif
   #else
     #define AVMSYSTEM_MIPS   0
   #endif*/
