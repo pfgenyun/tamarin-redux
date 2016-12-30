@@ -192,8 +192,8 @@ namespace nanojit
     void Assembler::asm_li32(Register r, int32_t imm)
     {
         // general case generating a full 32-bit load
-        DADDIU(r, r, lo(imm));
-        LUI(r, hi(imm));
+        ORI(r, r, imm & 0xffff);
+        LUI(r, (imm>>16) & 0xffff);
     }
 
     void Assembler::asm_li(Register r, int32_t imm)
@@ -217,10 +217,16 @@ namespace nanojit
 
     void Assembler::asm_liAddress(Register r, int64_t imm)
     {
-        DADDIU(r, r, imm & 0xffff);
+        /*ORI(r, r, imm & 0xffff);
         DSLL(r, r, 16);
         ORI(r, r, (imm>>16) & 0xffff);
-        LUI(r, (imm>>32) & 0xffff);
+        LUI(r, (imm>>32) & 0xffff);*/
+            ORI(r, r, imm & 0xffff);
+            DSLL(r, r, 16);
+            ORI(r, r, (imm>>16) & 0xffff);
+            DSLL(r, r, 16);
+            ORI(r, r, (imm>>32) & 0xffff);
+            LUI(r, (imm>>48) & 0xffff);
     }
 
     void Assembler::asm_li64(Register r, int64_t imm)
@@ -336,9 +342,9 @@ namespace nanojit
             // addu  $at,$rbase
             // ldsw  $r,  %lo(d)($at)
             // ldst  $r+1,%lo(d+4)($at)
-            LDSTGPR(store ? OP_SD : OP_LD, r,   lo(dr), AT);
+            LDSTGPR(store ? OP_SD : OP_LD, r,   dr & 0xffff, AT);
             DADDU(AT, AT, rbase);
-            LUI(AT, hi(dr));
+            LUI(AT, (dr>>16) & 0xffff);
         }
         else {
             NanoAssert(cpu_has_fpu);
@@ -355,9 +361,9 @@ namespace nanojit
                 // lui    $at,%hi(dr)
                 // addu   $at,$rbase
                 // lsdc1  $r,%lo(dr)($at)
-                LDSTFPR(store ? OP_SDC1 : OP_LDC1, r, lo(dr), AT);
+                LDSTFPR(store ? OP_SDC1 : OP_LDC1, r, dr & 0xffff, AT);
                 DADDU(AT, AT, rbase);
-                LUI(AT, hi(dr));
+                LUI(AT, (dr >> 16) & 0xffff);
             }
             else {
                 // lui   $at,%hi(d)
@@ -367,7 +373,7 @@ namespace nanojit
                 LDSTFPR(store ? OP_SWC1 : OP_LWC1, r+1, lo(dr+mswoff()), AT);
                 LDSTFPR(store ? OP_SWC1 : OP_LWC1, r,   lo(dr+lswoff()), AT);
                 DADDU(AT, AT, rbase);
-                LUI(AT, hi(dr));
+                LUI(AT, (dr >> 16) & 0xffff);
             }
         }
     }
@@ -378,8 +384,8 @@ namespace nanojit
         NanoAssert(isS16(dr) && isS16(dr+4));
         
         if (value->isImmQ()) {
-            asm_li64(AT, value->immQ());
             SD(AT, dr, rbase);
+            asm_li64(AT, value->immQ());
             return;
         }
 
@@ -425,7 +431,7 @@ namespace nanojit
                         if (p->isop(LIR_allocp))
                             DADDIU(r, FP, d);
                         else
-                            asm_ldst(p->isImmQ()?OP_LD:OP_LW, r, d, FP);
+                            asm_ldst(p->isImmQ()?OP_LD:OP_LD, r, d, FP);
                     }
                     else
                         // it must be in a saved reg
@@ -1068,15 +1074,15 @@ namespace nanojit
 
         if (kind == 0) {
             // ordinary param
-            // first 4 args A0..A3
-            if (a < 4) {
+            // first 8 args A0..A7
+            if (a < 8) {
                 // incoming arg in register
                 deprecated_prepResultReg(ins, rmask(RegAlloc::argRegs[a]));
             } else {
                 // incoming arg is on stack
                 Register r = deprecated_prepResultReg(ins, GpRegs);
                 int d = FRAMESIZE + a * sizeof(intptr_t);
-                LW(r, d, FP);
+                LD(r, d, FP);
             }
         }
         else {
@@ -1365,6 +1371,9 @@ namespace nanojit
                 break;
             case LIR_muli:
                 MUL(rr, ra, rb);
+                break;
+            case LIR_andq:
+                AND(rr, ra, rb);
                 break;
             default:
                 BADOPCODE(op);
@@ -1712,6 +1721,7 @@ namespace nanojit
             // b(ne|eq)z  $at,btarg
             switch (condop) {
             case LIR_eqi:
+            case LIR_eqq:
                 // special case
                 // b(ne|eq)  $ra,$rb,btarg
                 if (branchOnFalse)
@@ -2322,7 +2332,7 @@ namespace nanojit
         NanoAssert(ins->isop(LIR_paramp));
         // FIXME: FLOAT parameters?
         if (ins->paramKind() == 0)
-            if (ins->paramArg() < 4)
+            if (ins->paramArg() < 8)
                 prefer = rmask(RegAlloc::argRegs[ins->paramArg()]);
         return prefer;
     }

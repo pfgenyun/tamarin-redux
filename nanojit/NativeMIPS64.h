@@ -36,7 +36,7 @@ namespace nanojit
 #else
 #define NJ_MAX_STACK_ENTRY 4096
 #endif
-    static const int NJ_ALIGN_STACK = 8; // TODO 16 for 64 bit?
+    static const int NJ_ALIGN_STACK = 16; // TODO 16 for 64 bit?
 
     typedef uint32_t NIns;                // REQ: Instruction count
     typedef uint64_t RegisterMask;        // REQ: Large enough to hold LastRegNum-FirstRegNum bits
