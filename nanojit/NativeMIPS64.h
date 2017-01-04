@@ -395,6 +395,11 @@ namespace nanojit {
 #define OP_LD           55
 #define OP_SD           63
 #define SPECIAL_DADDU   45
+#define SPECIAL_DSLLV   20
+#define SPECIAL_DSRAV   23
+#define SPECIAL_DSRL    58 
+#define SPECIAL_DSRLV    22
+#define SPECIAL_DSRL32  62 
 
 // SPECIAL2: bits 5..0
 #define SPECIAL2_MUL    0x02
@@ -649,15 +654,19 @@ namespace nanojit {
 
 #define DSLL(rd, rt, sa)                                                 \
     do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, 0, GPR(rt), GPR(rd), sa, SPECIAL_DSLL), \
-                           "sll %s, %s, %d", gpn(rd), gpn(rt), sa); } while (0)
+                           "dsll %s, %s, %d", gpn(rd), gpn(rt), sa); } while (0)
 
 #define trampDSLL(rd, rt, sa)                                                 \
     do { count_alu(); TRAMP(R_FORMAT(OP_SPECIAL, 0, GPR(rt), GPR(rd), sa, SPECIAL_DSLL), \
-                           "sll %s, %s, %d", gpn(rd), gpn(rt), sa); } while (0)
+                           "dsll %s, %s, %d", gpn(rd), gpn(rt), sa); } while (0)
 
 #define SLLV(rd, rt, rs)                                                \
     do { count_misc(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(rt), GPR(rd), 0, SPECIAL_SLLV), \
                             "sllv %s, %s, %s", gpn(rd), gpn(rt), gpn(rs)); } while (0)
+
+#define DSLLV(rd, rt, rs)                                                \
+    do { count_misc(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(rt), GPR(rd), 0, SPECIAL_DSLLV), \
+                            "dsllv %s, %s, %s", gpn(rd), gpn(rt), gpn(rs)); } while (0)
 
 #define SRA(rd, rt, sa)                                                 \
     do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, 0, GPR(rt), GPR(rd), sa, SPECIAL_SRA), \
@@ -667,13 +676,29 @@ namespace nanojit {
     do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(rt), GPR(rd), 0, SPECIAL_SRAV), \
                            "srav %s, %s, %s", gpn(rd), gpn(rt), gpn(rs)); } while (0)
 
+#define DSRAV(rd, rt, rs)                                                \
+    do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(rt), GPR(rd), 0, SPECIAL_DSRAV), \
+                           "dsrav %s, %s, %s", gpn(rd), gpn(rt), gpn(rs)); } while (0)
+
 #define SRL(rd, rt, sa)                                                 \
     do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, 0, GPR(rt), GPR(rd), sa, SPECIAL_SRL), \
                            "srl %s, %s, %d", gpn(rd), gpn(rt), sa); } while (0)
 
+#define DSRL(rd, rt, sa)                                                 \
+    do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, 0, GPR(rt), GPR(rd), sa, SPECIAL_DSRL), \
+                           "dsrl %s, %s, %d", gpn(rd), gpn(rt), sa); } while (0)
+
+#define DSRL32(rd, rt, sa)                                                 \
+    do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, 0, GPR(rt), GPR(rd), sa, SPECIAL_DSRL32), \
+                           "dsrl32 %s, %s, %d", gpn(rd), gpn(rt), sa); } while (0)
+
 #define SRLV(rd, rt, rs)                                                \
     do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(rt), GPR(rd), 0, SPECIAL_SRLV), \
                            "srlv %s, %s, %s", gpn(rd), gpn(rt), gpn(rs)); } while (0)
+
+#define DSRLV(rd, rt, rs)                                                \
+    do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(rt), GPR(rd), 0, SPECIAL_DSRLV), \
+                           "dsrlv %s, %s, %s", gpn(rd), gpn(rt), gpn(rs)); } while (0)
 
 #define SUBU(rd, rs, rt)                                                \
     do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(rt), GPR(rd), 0, SPECIAL_SUBU), \

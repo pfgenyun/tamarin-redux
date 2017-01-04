@@ -49,8 +49,8 @@ namespace nanojit
         "resv",    "resv",   "resv", "resv",  "special2", "jalx", "resv",  "special3",
         "lb",      "lh",     "lwl",  "lw",    "lbu",      "lhu",  "lwr",   "resv",
         "sb",      "sh",     "swl",  "sw",    "resv",     "resv", "swr",   "cache",
-        "ll",      "lwc1",   "lwc2", "pref",  "resv",     "ldc1", "ldc2",  "resv",
-        "sc",      "swc1",   "swc2", "resv",  "resv",     "sdc1", "sdc2",  "resv",
+        "ll",      "lwc1",   "lwc2", "pref",  "resv",     "ldc1", "ldc2",  "ld",
+        "sc",      "swc1",   "swc2", "resv",  "resv",     "sdc1", "sdc2",  "sd",
     };
 #endif
 
@@ -431,7 +431,7 @@ namespace nanojit
                         if (p->isop(LIR_allocp))
                             DADDIU(r, FP, d);
                         else
-                            asm_ldst(p->isImmQ()?OP_LD:OP_LD, r, d, FP);
+                            asm_ldst(OP_LD, r, d, FP);
                     }
                     else
                         // it must be in a saved reg
@@ -741,8 +741,12 @@ namespace nanojit
         allow &= ~rmask(ra);
 
         if (ra != rr)
-            SLL(rr, ra, 0);
+           SLL(rr, ra, 0);
 
+        if (!a->isInReg()) {
+           NanoAssert(ra == rr);
+           findSpecificRegForUnallocated(a, ra);
+        }
     }
 
     void Assembler::asm_ui2uq(LIns *ins)
@@ -1272,6 +1276,8 @@ namespace nanojit
         switch (op) {
             case LIR_addxovi:
             case LIR_addjovi:
+                 NanoAssert(false);
+            case LIR_addjovq:
                 // add with overflow result into $at
                 // overflow is indicated by (sign(rr)^sign(ra)) & (sign(rr)^sign(rb))
 
@@ -1288,7 +1294,7 @@ namespace nanojit
                 t = ZERO;
                 if (rr == ra || ra != rb)
                     t = _allocator.allocTempReg(allow);
-                SRL(AT, AT, 31);
+                DSRL32(AT, AT, 31);
                 if (ra != rb) {
                     AND(AT, AT, t);
                     XOR(t, rr, rb);
@@ -1297,7 +1303,7 @@ namespace nanojit
                     XOR(AT, rr, t);
                 else
                     XOR(AT, rr, ra);
-                ADDU(rr, ra, rb);
+                DADDU(rr, ra, rb);
                 if (rr == ra)
                     MOVE(t, ra);
                 break;
@@ -1358,13 +1364,18 @@ namespace nanojit
                 // SLLV uses the low-order 5 bits of rb for the shift amount so no masking required
                 SLLV(rr, ra, rb);
                 break;
+            case LIR_lshq:
+                // SLLV uses the low-order 5 bits of rb for the shift amount so no masking required
+                DSLLV(rr, ra, rb);
             case LIR_rshi:
                 // SRAV uses the low-order 5 bits of rb for the shift amount so no masking required
-                SRAV(rr, ra, rb);
+                DSRAV(rr, ra, rb);
                 break;
+            case LIR_rshq:
+                DSRAV(rr, ra, rb);
             case LIR_rshui:
                 // SRLV uses the low-order 5 bits of rb for the shift amount so no masking required
-                SRLV(rr, ra, rb);
+                DSRLV(rr, ra, rb);
                 break;
             case LIR_mulxovi:
             case LIR_muljovi:
@@ -2056,18 +2067,21 @@ namespace nanojit
     Assembler::asm_q2d(LIns* ins)
     {
         printf("error asm_q2d\n");
+        NanoAssert(false);
     }
 
     void
     Assembler::asm_dasq(LIns* ins)
     {
         printf("error asm_dasq\n");
+        NanoAssert(false);
     }
 
     void
     Assembler::asm_qasd(LIns* ins)
     {
         printf("error asm_qasd\n");
+        NanoAssert(false);
     }
 
     Register
