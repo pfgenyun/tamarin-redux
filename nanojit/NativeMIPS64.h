@@ -122,6 +122,12 @@ namespace nanojit
         FV1 = F2,
         FA0 = F12,
         FA1 = F13,
+        FA2 = F14,
+        FA3 = F15,
+        FA4 = F16,
+        FA5 = F17,
+        FA6 = F18,
+        FA7 = F19,
         FT0 = F1,
         FT1 = F3,
         FT2 = F4,
@@ -185,7 +191,7 @@ namespace nanojit {
         REGMASK(FS3) | REGMASK(FS4) | REGMASK(FS5) |
 #endif
         REGMASK(FV0) | REGMASK(FV1) |
-        REGMASK(FA0) | REGMASK(FA1) |
+        REGMASK(FA0) | REGMASK(FA1) | REGMASK(FA2) | REGMASK(FA3) | REGMASK(FA4) | REGMASK(FA5) | REGMASK(FA6) | REGMASK(FA7) |
         REGMASK(FT0) | REGMASK(FT1) | REGMASK(FT2) |
         REGMASK(FT3) | REGMASK(FT4) | REGMASK(FT5);
 

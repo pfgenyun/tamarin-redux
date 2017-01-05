@@ -493,7 +493,7 @@ namespace nanojit
     void
     Assembler::asm_arg_64(LIns* arg, Register& r, Register& fr, int& stkd)
     {
-        // The stack offset always be at least aligned to 8 bytes.
+        // The stack offset always be at least aligned to 16 bytes.
         NanoAssert((stkd & 7) == 0);
 #if NJ_SOFTFLOAT_SUPPORTED
         NanoAssert(arg->isop(LIR_ii2d));
@@ -501,28 +501,10 @@ namespace nanojit
         NanoAssert(cpu_has_fpu);
 #endif
 
-        // O32 ABI requires that 64-bit arguments are aligned on even-numbered
-        // registers, as A0:A1/FA0 or A2:A3/FA1. Use the stack offset to keep track
-        // where we are
-        if (stkd & 8) {
-            if (stkd < 64) {
-                r = r + 1;
-                fr = fr + 1;
-            }
-            stkd += 8;
-        }
-
         if (stkd < 64) {
-            NanoAssert(fr == FA0 || fr == FA1 || fr == A2);
-            if (fr == FA0 || fr == FA1)
-                findSpecificRegFor(arg, fr);
-            else {
-                findSpecificRegFor(arg, FA1);
-                // Move it to the integer pair
-                Register fpupair = arg->getReg();
-                Register intpair = fr;
-                DMFC1(intpair, fpupair);   // Even fpu register contains mantlo
-            }
+            NanoAssert(fr == FA0 || fr == FA1 || fr == FA2 || fr == FA3 || fr == FA4 || fr == FA5 ||
+                       fr == FA6 || fr == FA7);
+            findSpecificRegFor(arg, fr);
             r = r + 1;
             fr = fr + 1;
         }
@@ -1964,7 +1946,7 @@ namespace nanojit
                 asm_stkarg(arg, stkd);
             // The o32 ABI calling convention is that if the first arguments
             // is not a double, subsequent double values are passed in integer registers
-            fr = r;
+            //fr = r;
             stkd += 8;
         }
     }
