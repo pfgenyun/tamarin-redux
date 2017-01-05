@@ -121,7 +121,7 @@ namespace nanojit
         FV0 = F0,
         FV1 = F2,
         FA0 = F12,
-        FA1 = F14,
+        FA1 = F13,
         FT0 = F4,
         FT1 = F6,
         FT2 = F8,
@@ -757,6 +757,7 @@ namespace nanojit {
 #define NEG_D(fd, fs)           NanoAssertMsg(0, "softfloat NEG_D")
 #define SUB_D(fd, fs, ft)       NanoAssertMsg(0, "softfloat SUB_D")
 #define TRUNC_W_D(fd,fs)        NanoAssertMsg(0, "softfloat TRUNC_W_D")
+#define DMTC1(rt, fs)            NanoAssertMsg(0, "softfloat DMTC1")
 
 #else
 
@@ -787,6 +788,10 @@ namespace nanojit {
 #define MTC1(rt, fs)                                                    \
     do { count_fpu(); EMIT(F_FORMAT(OP_COP1, 4, GPR(rt), FPR(fs), FPR(F0), 0), \
                            "mtc1 %s, %s", gpn(rt), fpn(fs)); } while (0)
+
+#define DMTC1(rt, fs)                                                    \
+    do { count_fpu(); EMIT(F_FORMAT(OP_COP1, 5, GPR(rt), FPR(fs), FPR(F0), 0), \
+                           "dmtc1 %s, %s", gpn(rt), fpn(fs)); } while (0)
 
 #define MOVF(rd, rs, cc)                                                \
     do { count_fpu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), (cc)<<2, GPR(rd), 0, SPECIAL_MOVCI), \
