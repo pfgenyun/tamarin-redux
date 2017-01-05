@@ -60,7 +60,7 @@
     #define _STATIC_ASSERT_DO_JOIN2(x,y) x##y
 
     #define static_assert(condition, message) \
-    typedef ::vmbase::static_assert_helper<sizeof (::vmbase::STATIC_ASSERTION_FAILED<(bool)(condition)>)> \
+    typedef ::vmbase::static_assert_helper<1/*sizeof (::vmbase::STATIC_ASSERTION_FAILED<(bool)(condition)>)*/> \
         _STATIC_ASSERT_JOIN(MMgc_static_assert_line_, __LINE__)
 #endif
 
