@@ -122,18 +122,18 @@ namespace nanojit
         FV1 = F2,
         FA0 = F12,
         FA1 = F13,
-        FT0 = F4,
-        FT1 = F6,
-        FT2 = F8,
-        FT3 = F10,
-        FT4 = F16,
-        FT5 = F18,
-        FS0 = F20,
-        FS1 = F22,
-        FS2 = F24,
-        FS3 = F26,
-        FS4 = F28,
-        FS5 = F30,
+        FT0 = F1,
+        FT1 = F3,
+        FT2 = F4,
+        FT3 = F6,
+        FT4 = F8,
+        FT5 = F10,
+        FS0 = F21,
+        FS1 = F23,
+        FS2 = F25,
+        FS3 = F27,
+        FS4 = F29,
+        FS5 = F31,
 
         UnspecifiedReg        = { 127 },
         deprecated_UnknownReg = { 127 };    // XXX: remove eventually, see bug 538924
@@ -400,6 +400,7 @@ namespace nanojit {
 #define SPECIAL_DSRL    58 
 #define SPECIAL_DSRLV    22
 #define SPECIAL_DSRL32  62 
+#define SPECIAL_DSUBU   47
 
 #define SPECIAL_BREAK  13
 
@@ -710,6 +711,10 @@ namespace nanojit {
     do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(rt), GPR(rd), 0, SPECIAL_SUBU), \
                            "subu %s, %s, %s", gpn(rd), gpn(rs), gpn(rt)); } while (0)
 
+#define DSUBU(rd, rs, rt)                                                \
+    do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, GPR(rs), GPR(rt), GPR(rd), 0, SPECIAL_DSUBU), \
+                           "dsubu %s, %s, %s", gpn(rd), gpn(rs), gpn(rt)); } while (0)
+
 #define SW(rt, offset, base)                    \
     LDSTGPR(OP_SW, rt, offset, base)
 
@@ -758,6 +763,7 @@ namespace nanojit {
 #define SUB_D(fd, fs, ft)       NanoAssertMsg(0, "softfloat SUB_D")
 #define TRUNC_W_D(fd,fs)        NanoAssertMsg(0, "softfloat TRUNC_W_D")
 #define DMTC1(rt, fs)            NanoAssertMsg(0, "softfloat DMTC1")
+#define MTHC1(rt, fs)            NanoAssertMsg(0, "softfloat MTHC1")
 
 #else
 
@@ -783,11 +789,15 @@ namespace nanojit {
 
 #define DMFC1(rt, fs)                                                    \
     do { count_fpu(); EMIT(F_FORMAT(OP_COP1, 1, GPR(rt), FPR(fs), FPR(F0), 0), \
-                           "mfc1 %s, %s", gpn(rt), fpn(fs)); } while (0)
+                           "dmfc1 %s, %s", gpn(rt), fpn(fs)); } while (0)
 
 #define MTC1(rt, fs)                                                    \
     do { count_fpu(); EMIT(F_FORMAT(OP_COP1, 4, GPR(rt), FPR(fs), FPR(F0), 0), \
                            "mtc1 %s, %s", gpn(rt), fpn(fs)); } while (0)
+
+#define MTHC1(rt, fs)                                                    \
+    do { count_fpu(); EMIT(F_FORMAT(OP_COP1, 7, GPR(rt), FPR(fs), FPR(F0), 0), \
+                           "mthc1 %s, %s", gpn(rt), fpn(fs)); } while (0)
 
 #define DMTC1(rt, fs)                                                    \
     do { count_fpu(); EMIT(F_FORMAT(OP_COP1, 5, GPR(rt), FPR(fs), FPR(F0), 0), \

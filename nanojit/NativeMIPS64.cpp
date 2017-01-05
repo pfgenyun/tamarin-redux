@@ -256,9 +256,9 @@ namespace nanojit
             // li   $at,msw         # iff (msw != 0) && (msw != lsw)
             // mtc1 $at,$(r+1)      # may use $0 instead of $at
             if (msw == 0)
-                MTC1(ZERO, r+1);
+                MTHC1(ZERO, r);
             else {
-                MTC1(AT, r+1);
+                MTHC1(AT, r);
                 // If the MSW & LSW values are different, reload AT
                 if (msw != lsw)
                     asm_li(AT, msw);
@@ -1319,6 +1319,9 @@ namespace nanojit
             case LIR_ori:
                 OR(rr, ra, rb);
                 break;
+            case LIR_orq:
+                OR(rr, ra, rb);
+                break;
             case LIR_xori:
             case LIR_xorq:
                 XOR(rr, ra, rb);
@@ -1360,6 +1363,9 @@ namespace nanojit
             case LIR_subi:
                 SUBU(rr, ra, rb);
                 break;
+            case LIR_subq:
+                DSUBU(rr, ra, rb);
+                break;
             case LIR_lshi:
                 // SLLV uses the low-order 5 bits of rb for the shift amount so no masking required
                 SLLV(rr, ra, rb);
@@ -1367,6 +1373,7 @@ namespace nanojit
             case LIR_lshq:
                 // SLLV uses the low-order 5 bits of rb for the shift amount so no masking required
                 DSLLV(rr, ra, rb);
+                break;
             case LIR_rshi:
                 // SRAV uses the low-order 5 bits of rb for the shift amount so no masking required
                 DSRAV(rr, ra, rb);
