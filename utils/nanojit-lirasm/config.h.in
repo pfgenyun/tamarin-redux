@@ -12,6 +12,7 @@
 #undef AVMPLUS_OS2
 #undef AVMPLUS_PPC
 #undef AVMPLUS_MIPS
+#undef AVMPLUS_MIPS64
 #undef VMCFG_SH4
 #undef VMCFG_FLOAT
 #undef VMCFG_SSE2

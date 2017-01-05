@@ -37,6 +37,8 @@
 #include "NativeSH4.h"
 #elif defined(NANOJIT_MIPS)
 #include "NativeMIPS.h"
+#elif defined(NANOJIT_MIPS64)
+#include "NativeMIPS64.h"
 #else
 #error "unknown nanojit architecture"
 #endif

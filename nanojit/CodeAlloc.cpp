@@ -244,7 +244,7 @@ extern "C" void __clear_cache(char *BEG, char *END);
 #endif
 #endif
 
-#if defined(AVMPLUS_UNIX) && defined(NANOJIT_MIPS)
+#if defined(AVMPLUS_UNIX) && (defined(NANOJIT_MIPS) || defined(NANOJIT_MIPS64))
 #include <asm/cachectl.h>
 extern  "C" int cacheflush(char *addr, int nbytes, int cache);
 #endif
@@ -325,7 +325,7 @@ extern  "C" void sync_instruction_memory(caddr_t v, u_int len);
         syscall(__NR_cacheflush, start, len, CACHEFLUSH_D_WB | CACHEFLUSH_I);
     }
 
-#elif defined(AVMPLUS_UNIX) && defined(NANOJIT_MIPS)
+#elif defined(AVMPLUS_UNIX) && (defined(NANOJIT_MIPS) || defined(NANOJIT_MIPS64))
     void CodeAlloc::flushICache(void *start, size_t len) {
         // FIXME Use synci on MIPS32R2
         cacheflush((char *)start, len, BCACHE);

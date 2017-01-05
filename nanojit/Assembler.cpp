@@ -1161,7 +1161,7 @@ typedef void* (*decode_instructions_ftype) (void* start, void* end,
         NanoAssert(!_inExit);
         // save used parts of current block on fragment's code list, free the rest
         //### FIXME: NANOJIT_THUMB2 is presently a dirty hack.
-#if (defined(NANOJIT_ARM) && !defined(NANOJIT_THUMB2)) || defined(NANOJIT_MIPS)
+#if (defined(NANOJIT_ARM) && !defined(NANOJIT_THUMB2)) || defined(NANOJIT_MIPS) || defined(NANOJIT_MIPS64)
         // [codeStart, _nSlot) ... gap ... [_nIns, codeEnd)
         if (_nExitIns) {
             _codeAlloc.addRemainder(codeList, exitStart, exitEnd, _nExitSlot, _nExitIns);
