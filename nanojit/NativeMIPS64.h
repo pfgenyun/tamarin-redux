@@ -401,6 +401,8 @@ namespace nanojit {
 #define SPECIAL_DSRLV    22
 #define SPECIAL_DSRL32  62 
 
+#define SPECIAL_BREAK  13
+
 // SPECIAL2: bits 5..0
 #define SPECIAL2_MUL    0x02
 
@@ -559,6 +561,10 @@ namespace nanojit {
 #define trampJR(rs)                                                     \
     do { count_jmp(); TRAMP(R_FORMAT(OP_SPECIAL, GPR(rs), 0, 0, 0, SPECIAL_JR), \
                             "jr %s", gpn(rs)); } while (0)
+
+#define BREAK(rs)                                                            \
+    do { count_jmp(); EMIT(R_FORMAT(OP_SPECIAL, 0, 0, 0, rs, SPECIAL_BREAK), \
+                           "break %s", rs); } while (0)
 
 #define LB(rt, offset, base)                    \
     LDSTGPR(OP_LB, rt, offset, base)
