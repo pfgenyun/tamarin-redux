@@ -1278,7 +1278,15 @@ namespace nanojit
         switch (op) {
             case LIR_addxovi:
             case LIR_addjovi:
-                 NanoAssert(false);
+                t = _allocator.allocTempReg(allow);
+                XORI(AT, AT, 1);
+                SLTIU(AT, AT, 1);
+                XOR(AT, AT, rr);
+                DADDU(AT, rr == ra ? t : ra, rb);
+                ADDU(rr, ra, rb);
+                if (rr == ra)
+                    MOVE(t, ra);
+                goto done;
             case LIR_addjovq:
                 // add with overflow result into $at
                 // overflow is indicated by (sign(rr)^sign(ra)) & (sign(rr)^sign(rb))
@@ -1773,6 +1781,7 @@ namespace nanojit
                 patch = _nIns;
                 break;
             case LIR_lti:
+            case LIR_ltq:
                 if (branchOnFalse)
                     BEQ(AT, ZERO, btarg);
                 else
