@@ -1486,16 +1486,18 @@ namespace nanojit
                 DADDU(r, FP, AT);
                 asm_li(AT, d);
             }
-        }
-        else if (i->isImmI()) {
+        } else if (i->isImmI()) {
             asm_li(r, i->immI());
-        }
-        else {
+        } else if (i->isImmQ()) {
+            asm_li64(r, i->immQ());
+        } else {
             d = findMemFor(i);
             if (IsFpReg(r)) {
                 asm_ldst64(false, r, d, FP);
-            }
-            else {
+            } else if (i->isI()) {
+                asm_ldst(OP_LW, r, d, FP);
+            } else {
+                NanoAssert(i->isQ());
                 asm_ldst(OP_LD, r, d, FP);
             }
         }
