@@ -407,6 +407,7 @@ namespace nanojit {
 #define SPECIAL_DSRLV    22
 #define SPECIAL_DSRL32  62 
 #define SPECIAL_DSUBU   47
+#define SPECIAL_DSLL32  60
 
 #define SPECIAL_BREAK  13
 
@@ -668,6 +669,10 @@ namespace nanojit {
 #define DSLL(rd, rt, sa)                                                 \
     do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, 0, GPR(rt), GPR(rd), sa, SPECIAL_DSLL), \
                            "dsll %s, %s, %d", gpn(rd), gpn(rt), sa); } while (0)
+
+#define DSLL32(rd, rt, sa)                                                 \
+    do { count_alu(); EMIT(R_FORMAT(OP_SPECIAL, 0, GPR(rt), GPR(rd), sa, SPECIAL_DSLL32), \
+                           "dsll32 %s, %s, %d", gpn(rd), gpn(rt), sa); } while (0)
 
 #define trampDSLL(rd, rt, sa)                                                 \
     do { count_alu(); TRAMP(R_FORMAT(OP_SPECIAL, 0, GPR(rt), GPR(rd), sa, SPECIAL_DSLL), \

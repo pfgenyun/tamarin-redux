@@ -733,8 +733,28 @@ namespace nanojit
 
     void Assembler::asm_ui2uq(LIns *ins)
     {
-        USE(ins);
-        TODO(asm_ui2uq);
+        LIns* a = ins->oprnd1();
+        RegisterMask allow = GpRegs;
+        Register rr = deprecated_prepResultReg(ins, allow);
+        Register ra = a->isInReg() ? a->deprecated_getReg():rr;
+
+        NanoAssert(deprecated_isKnownReg(rr));
+        NanoAssert(deprecated_isKnownReg(ra));
+        allow &= ~rmask(rr);
+        allow &= ~rmask(ra);
+
+        if (ins->isop(LIR_ui2uq)) {
+            DSRL32(rr, rr, 0);
+            DSLL32(rr, ra, 0);  // set upper 32 bits to zero
+        } else {
+            NanoAssert(ins->isop(LIR_i2q));
+            SLL(rr, ra, 0);  // sign extend 32 -> 64
+        }
+
+        if (!a->isInReg()) {
+           NanoAssert(ra == rr);
+           findSpecificRegForUnallocated(a, ra);
+        }
         TAG("asm_ui2uq(ins=%p{%s})", ins, lirNames[ins->opcode()]);
     }
 #endif
