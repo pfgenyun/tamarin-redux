@@ -1392,6 +1392,8 @@ namespace nanojit
                 DSRAV(rr, ra, rb);
                 break;
             case LIR_rshui:
+                SRLV(rr, ra, rb);
+                break;
             case LIR_rshuq:
                 // SRLV uses the low-order 5 bits of rb for the shift amount so no masking required
                 DSRLV(rr, ra, rb);
