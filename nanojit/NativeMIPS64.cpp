@@ -1551,6 +1551,7 @@ namespace nanojit
             XOR(cr,ra,rb);
             break;
         case LIR_lti:
+        case LIR_ltq:
             SLT(cr,ra,rb);
             break;
         case LIR_gti:
@@ -1802,6 +1803,7 @@ namespace nanojit
                 SLT(AT, rb, ra);
                 break;
             case LIR_lei:
+            case LIR_leq:
                 if (branchOnFalse)
                     BNE(AT, ZERO, btarg);
                 else
