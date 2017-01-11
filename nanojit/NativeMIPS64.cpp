@@ -431,7 +431,7 @@ namespace nanojit
                         if (p->isop(LIR_allocp))
                             DADDIU(r, FP, d);
                         else
-                            asm_ldst(OP_LD, r, d, FP);
+                            asm_ldst((ty == ARGTYPE_Q )? OP_LD:OP_LW, r, d, FP);
                     }
                     else
                         // it must be in a saved reg
