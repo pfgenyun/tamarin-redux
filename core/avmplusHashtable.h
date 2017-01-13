@@ -269,7 +269,7 @@ namespace avmplus
     #ifdef AVMPLUS_64BIT
         // on 64-bit systems, padding will force us to 16 bytes here anyway, so let's just use unpacked ints
         uint32_t m_size;            // number of properties
-        uint32_t m_logCapacity;     // (log2 of capacity) + 1
+        volatile uint32_t m_logCapacity;     // (log2 of capacity) + 1
     #else
         uint32_t m_size:27;         // number of properties
         uint32_t m_logCapacity:5;   // (log2 of capacity) + 1 -- gives us enough space for 2^32 entries
