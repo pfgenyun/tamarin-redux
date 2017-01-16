@@ -564,7 +564,7 @@ namespace nanojit
         underrunProtect(6*4);   // keep branch and destination together
         NIns *here = _nIns;
         ADD_D(fr,fr,ft);
-        MTC1(AT,ft+1);
+        MTHC1(AT,ft);
         MTC1(ZERO,ft);
         LUI(AT,0x41f0);
         CVT_D_W(fr,ft);            // branch delay slot
