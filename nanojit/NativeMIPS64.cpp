@@ -1386,7 +1386,7 @@ namespace nanojit
                 break;
             case LIR_rshi:
                 // SRAV uses the low-order 5 bits of rb for the shift amount so no masking required
-                DSRAV(rr, ra, rb);
+                SRAV(rr, ra, rb);
                 break;
             case LIR_rshq:
                 DSRAV(rr, ra, rb);
