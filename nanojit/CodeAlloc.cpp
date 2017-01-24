@@ -22,6 +22,8 @@ namespace nanojit
     // ARM requires single-page allocations, due to the constant pool that
     // lives on each page that must be reachable by a 4KB pc-relative load.
     static const int pagesPerAlloc = 1; // 4KB
+#elif defined(NANOJIT_MIPS) || defined(NANOJIT_MIPS64)
+    static const int pagesPerAlloc = 4; // 16KB * 4
 #else
     static const int pagesPerAlloc = 16; // 64KB
 #endif
