@@ -408,9 +408,7 @@ namespace nanojit
             SW(ZERO, dr+mswoff(), rbase);
         else {
             SW(AT, dr+mswoff(), rbase);
-            // If the MSW & LSW values are different, reload AT
-            if (msw != lsw)
-                asm_li(AT, msw);
+            asm_li(AT, msw);
         }
     }
 
