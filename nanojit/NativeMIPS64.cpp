@@ -1548,6 +1548,7 @@ namespace nanojit
             SLT(cr,ra,rb);
             break;
         case LIR_gti:
+        case LIR_gtq:
             SLT(cr,rb,ra);
             break;
         case LIR_lei:
