@@ -1438,14 +1438,9 @@ namespace nanojit
         switch (op) {
             case LIR_stq:
                 if (1) {
-                    Register rbase = findRegFor(base, GpRegs);
-                    if (value->isImmQ())
-                        asm_store_imm64(value, dr, rbase);
-                    else {
-                        Register gpv = findRegFor(value, GpRegs);
-                        NanoAssert(isS16(dr));
-                        SD(gpv, dr, rbase);
-                    }
+                    Register rt, rbase;
+                    getBaseReg2(GpRegs, value, rt, GpRegs, base, rbase, dr);
+                    asm_ldst(OP_SD, rt, dr, rbase);
                 }
                 break;
 
