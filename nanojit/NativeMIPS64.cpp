@@ -2041,8 +2041,8 @@ namespace nanojit
     Assembler::asm_restorepc(void)
     {
         NOP();
-        JR(RA);
-        LD(RA, -8, SP);
+        JR(T9);
+        LD(T9, -8, SP);
         DADDIU(SP, SP, 16);
     }
 
@@ -2057,7 +2057,7 @@ namespace nanojit
     {
         Register r = findRegFor(flag, GpRegs);
         NIns* skipTarget = _nIns;
-        underrunProtect(8);
+        underrunProtect(2 * 4);
 
         NOP();
         JR(T9);
@@ -2066,11 +2066,13 @@ namespace nanojit
         SD(RA, 8, SP);
         DADDIU(SP, SP, -16);
 
-        DADDIU(RA, RA, 5 * 4);  // Delayslot
-        BGEZAL(ZERO, _nIns+1);  // get pc
+        DADDIU(RA, RA, 10 * 4);  // Delayslot
+        BGEZAL(ZERO, _nIns+2);  // get pc
 
         NOP();
-        BEQ(r, ZERO, skipTarget);
+        J(skipTarget);
+        NOP();
+        BNE(r, ZERO, _nIns + 4);
     }
 
     void Assembler::asm_memfence()
