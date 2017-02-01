@@ -1988,13 +1988,47 @@ namespace nanojit
     void 
     Assembler::asm_pushstate(void)
     {
-        NanoAssert(false);
+        SD(RA, 128,  SP);
+        SD(FP, 120,  SP);
+        SD(FP, 112,  SP);  // sp
+        SD(S7, 104,  SP);
+        SD(S6, 96,  SP);
+        SD(S5, 88,  SP);
+        SD(S4, 80,  SP);
+        SD(S3, 72,  SP);
+        SD(S2, 64,  SP);
+        SD(S1, 56,  SP);
+        SD(S0, 48,  SP);
+        SD(A3, 40, SP);
+        SD(A2, 32, SP);
+        SD(A1, 24, SP);
+        SD(A0, 16, SP);
+        SD(V1, 8,  SP);
+        SD(V0, 0,  SP);
+        DADDIU(SP, SP, -136);
     }
 
     void 
     Assembler::asm_popstate(void)
     {
-        NanoAssert(false);
+        DADDIU(SP, SP, 136);
+        LD(RA, 128,  SP);
+        LD(FP, 120,  SP);
+        LD(FP, 112,  SP);  // sp
+        LD(S7, 104,  SP);
+        LD(S6, 96,  SP);
+        LD(S5, 88,  SP);
+        LD(S4, 80,  SP);
+        LD(S3, 72,  SP);
+        LD(S2, 64,  SP);
+        LD(S1, 56,  SP);
+        LD(S0, 48,  SP);
+        LD(A3, 40, SP);
+        LD(A2, 32, SP);
+        LD(A1, 24, SP);
+        LD(A0, 16, SP);
+        LD(V1, 8,  SP);
+        LD(V0, 0,  SP);
     }
 
     void 
@@ -2006,7 +2040,10 @@ namespace nanojit
     void 
     Assembler::asm_restorepc(void)
     {
-        NanoAssert(false);
+        NOP();
+        JR(RA);
+        LD(RA, -8, SP);
+        DADDIU(SP, SP, 16);
     }
 
     void 
@@ -2014,6 +2051,30 @@ namespace nanojit
     {
         NanoAssert(false);
     }
+
+    void
+    Assembler::asm_brsavpc_impl(LIns* flag, NIns* target)
+    {
+        Register r = findRegFor(flag, GpRegs);
+        NIns* skipTarget = _nIns;
+        underrunProtect(8);
+
+        NOP();
+        JR(T9);
+        asm_liAddress(T9, (int64_t)target);
+
+        SD(RA, 8, SP);
+        DADDIU(SP, SP, -16);
+
+        DADDIU(RA, RA, 5 * 4);  // Delayslot
+        BGEZAL(ZERO, _nIns+1);  // get pc
+
+        NOP();
+        BEQ(r, ZERO, skipTarget);
+    }
+
+    void Assembler::asm_memfence()
+    {}
 
     void
     Assembler::asm_call(LIns* ins)

@@ -27,7 +27,7 @@ namespace nanojit
 #define NJ_JTBL_SUPPORTED               0
 #define NJ_EXPANDED_LOADSTORE_SUPPORTED 1
 #define NJ_F2I_SUPPORTED                1
-#define NJ_SAFEPOINT_POLLING_SUPPORTED  0
+#define NJ_SAFEPOINT_POLLING_SUPPORTED  1
 
     // Req: NJ_MAX_STACK_ENTRY is number of instructions to hold in LIR stack
 #if 0
@@ -153,7 +153,7 @@ namespace nanojit {
     verbose_only(extern const char* regNames[];)
 
     // REQ: Bytes of icache to flush after Assembler::patch
-    const size_t LARGEST_BRANCH_PATCH = 2 * sizeof(NIns);
+    const size_t LARGEST_BRANCH_PATCH = 4 * sizeof(NIns);
 
     // REQ: largest value passed to underrunProtect
     static const int LARGEST_UNDERRUN_PROT = 32;
@@ -261,6 +261,8 @@ namespace nanojit {
     void asm_stkarg(LIns* arg, int stkd);                               \
     void asm_pushstate(void);                                           \
     void asm_popstate(void);                                            \
+    void asm_memfence(); \
+    void asm_brsavpc_impl(LIns* flag, NIns* targ);\
     void asm_savepc(void);                                              \
     void asm_restorepc(void);                                           \
     void asm_discardpc(void);                                           \
@@ -354,6 +356,7 @@ namespace nanojit {
 // REGIMM: bits 20..16
 #define REGIMM_BLTZ     0x00
 #define REGIMM_BGEZ     0x01
+#define REGIMM_BGEZAL   17
 
 // COP1: bits 25..21
 #define COP1_ADD        0x00
@@ -540,6 +543,10 @@ namespace nanojit {
 #define BGEZ(rs, targ)                                                  \
     do { count_br(); EMIT(I_FORMAT(OP_REGIMM, GPR(rs), REGIMM_BGEZ, BOFFSET(targ)), \
                           "bgez %s, %p", gpn(rs), targ); } while (0)
+
+#define BGEZAL(rs, targ)                                                  \
+    do { count_br(); EMIT(I_FORMAT(OP_REGIMM, GPR(rs), REGIMM_BGEZAL, BOFFSET(targ)), \
+                          "bgezal %s, %p", gpn(rs), targ); } while (0)
 
 #define BLTZ(rs, targ)                                                  \
     do { count_br(); EMIT(I_FORMAT(OP_REGIMM, GPR(rs), REGIMM_BLTZ, BOFFSET(targ)), \
