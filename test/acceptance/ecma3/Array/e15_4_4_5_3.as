@@ -83,8 +83,8 @@ function getTestCases() {
         testcases[tc] = Assert.expectEq(
    
             "testarr3["+i+"]",
-            realarr[i],
-            testarr3[i] );
+            realarr[i].valueOf(),  // I this it test for value equal?
+            testarr3[i].valueOf());
     }
 
     for ( var i=0; i < array.length; i++,  tc++) {

@@ -161,11 +161,13 @@ function DayNumber( t ) {
     return ( Math.floor( t / msPerDay ) );
 }
 function TimeWithinDay( t ) {
-    if ( t < 0 ) {
+   /*if ( t < 0 ) {
         return ( (t % msPerDay) + msPerDay );
     } else {
         return ( t % msPerDay );
-    }
+    }*/
+   var a = t % msPerDay;
+   return a < 0 ? a + msPerDay : a;
 }
 function YearNumber( t ) {
 }
@@ -336,8 +338,8 @@ function UTC( t ) {
 }
 
 function DaylightSavingTA( t ) {
-    // There is no Daylight saving time in India
-    if (IST_DIFF == 0)
+    // There is no Daylight saving time in India and Beijing
+    if (IST_DIFF == 0 || TZ_DIFF == 8)
         return 0;
 
     var dst_start;
