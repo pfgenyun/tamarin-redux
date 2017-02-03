@@ -153,10 +153,10 @@ namespace nanojit {
     verbose_only(extern const char* regNames[];)
 
     // REQ: Bytes of icache to flush after Assembler::patch
-    const size_t LARGEST_BRANCH_PATCH = 4 * sizeof(NIns);
+    const size_t LARGEST_BRANCH_PATCH = 16 * sizeof(NIns);
 
     // REQ: largest value passed to underrunProtect
-    static const int LARGEST_UNDERRUN_PROT = 32;
+    static const int LARGEST_UNDERRUN_PROT = 64;
 
     // REQ: Number of callee saved registers
 #ifdef FPCALLEESAVED

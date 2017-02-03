@@ -2057,7 +2057,7 @@ namespace nanojit
     {
         Register r = findRegFor(flag, GpRegs);
         NIns* skipTarget = _nIns;
-        underrunProtect(2 * 4);
+        underrunProtect(16 * 4);
 
         NOP();
         JR(T9);
