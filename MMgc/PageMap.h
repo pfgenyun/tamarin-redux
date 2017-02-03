@@ -272,8 +272,8 @@ namespace MMgc
             // however code not optimized for tier0_nbits = 0 case)
             static const uint32_t tier0_nbits =  3;
             // remaining tiers are allocated in page-sized units.
-            static const uint32_t tier1_nbits =  9;
-            static const uint32_t tier2_nbits =  9;
+            static const uint32_t tier1_nbits = 11;
+            static const uint32_t tier2_nbits = 11;
             static const uint32_t tier3_nbits = 15;
 
             // 12 : covers 4096 byte page
