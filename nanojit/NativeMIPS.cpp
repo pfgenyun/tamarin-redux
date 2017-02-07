@@ -1844,13 +1844,47 @@ namespace nanojit
     void 
     Assembler::asm_pushstate(void)
     {
-        NanoAssert(false);
+        SW(RA, 64,  SP);
+        SW(FP, 60,  SP);
+        SW(FP, 56,  SP);  // sp
+        SW(S7, 52,  SP);
+        SW(S6, 48,  SP);
+        SW(S5, 44,  SP);
+        SW(S4, 40,  SP);
+        SW(S3, 36,  SP);
+        SW(S2, 32,  SP);
+        SW(S1, 28,  SP);
+        SW(S0, 24,  SP);
+        SW(A3, 20, SP);
+        SW(A2, 16, SP);
+        SW(A1, 12, SP);
+        SW(A0, 8, SP);
+        SW(V1, 4,  SP);
+        SW(V0, 0,  SP);
+        ADDIU(SP, SP, -68);
     }
 
     void 
     Assembler::asm_popstate(void)
     {
-        NanoAssert(false);
+        ADDIU(SP, SP, 68);
+        LW(RA, 64,  SP);
+        LW(FP, 60,  SP);
+        LW(FP, 56,  SP);  // sp
+        LW(S7, 52,  SP);
+        LW(S6, 48,  SP);
+        LW(S5, 44,  SP);
+        LW(S4, 40,  SP);
+        LW(S3, 36,  SP);
+        LW(S2, 32,  SP);
+        LW(S1, 28,  SP);
+        LW(S0, 24,  SP);
+        LW(A3, 20, SP);
+        LW(A2, 16, SP);
+        LW(A1, 12, SP);
+        LW(A0, 8, SP);
+        LW(V1, 4,  SP);
+        LW(V0, 0,  SP);
     }
 
     void 
@@ -1862,7 +1896,10 @@ namespace nanojit
     void 
     Assembler::asm_restorepc(void)
     {
-        NanoAssert(false);
+        NOP();
+        JR(T9);
+        LW(T9, -8, SP);
+        ADDIU(SP, SP, 16);
     }
 
     void 
@@ -1870,6 +1907,32 @@ namespace nanojit
     {
         NanoAssert(false);
     }
+
+    void
+    Assembler::asm_brsavpc_impl(LIns* flag, NIns* target)
+    {
+        Register r = findRegFor(flag, GpRegs);
+        NIns* skipTarget = _nIns;
+        underrunProtect(12 * 4);
+
+        NOP();
+        JR(T9);
+        asm_li32(T9, (uint32_t)target);
+
+        SW(RA, 8, SP);
+        ADDIU(SP, SP, -16);
+
+        ADDIU(RA, RA, 6 * 4);  // Delayslot
+        BGEZAL(ZERO, _nIns+2);  // get pc
+
+        NOP();
+        J(skipTarget);
+        NOP();
+        BNE(r, ZERO, _nIns + 4);
+    }
+
+    void Assembler::asm_memfence()
+    {}
 
     void
     Assembler::asm_call(LIns* ins)
