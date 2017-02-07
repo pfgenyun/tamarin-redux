@@ -54,12 +54,12 @@ namespace nanojit
     };
 #endif
 
-    const Register RegAlloc::argRegs[] = { A0, A1, A2, A3, T0, T1, T2, T3 };  //TODO ABI64
+    const Register RegAlloc::argRegs[] = { A0, A1, A2, A3, T0, T1, T2, T3 };
     const Register RegAlloc::retRegs[] = { V0, V1 };
     const Register RegAlloc::savedRegs[] = {
         S0, S1, S2, S3, S4, S5, S6, S7,
 #ifdef FPCALLEESAVED
-        FS0, FS1, FS2, FS3, FS4, FS5
+        FS0, FS1, FS2, FS3, FS4, FS5, FS6, FS7
 #endif
     };
 
@@ -217,11 +217,7 @@ namespace nanojit
 
     void Assembler::asm_liAddress(Register r, int64_t imm)
     {
-        /*ORI(r, r, imm & 0xffff);
-        DSLL(r, r, 16);
-        ORI(r, r, (imm>>16) & 0xffff);
-        LUI(r, (imm>>32) & 0xffff);*/
-        ORI(r, r, imm & 0xffff);    // TODO use instrs above
+        ORI(r, r, imm & 0xffff);
         DSLL(r, r, 16);
         ORI(r, r, (imm>>16) & 0xffff);
         DSLL(r, r, 16);
@@ -232,17 +228,12 @@ namespace nanojit
     void Assembler::asm_li64(Register r, int64_t imm)
     {
         if (isInS16(imm)) {
-            DADDIU(r, ZERO, imm & 0xffff);
+            DADDIU(r, ZERO, imm);
         } else if (isInS32(imm)) {
             ORI(r, r, imm & 0xffff);
             LUI(r, (imm>>16) & 0xffff); 
         } else {
-            ORI(r, r, imm & 0xffff);
-            DSLL(r, r, 16);
-            ORI(r, r, (imm>>16) & 0xffff);
-            DSLL(r, r, 16);
-            ORI(r, r, (imm>>32) & 0xffff);
-            LUI(r, (imm>>48) & 0xffff);
+            asm_liAddress(r, imm);
         }
     }
 
@@ -275,6 +266,7 @@ namespace nanojit
              * li $r.lo, lsw
              * li $r.hi, msw   # will be converted to move $f.hi,$f.lo if (msw==lsw)
              */
+            NanoAssert(false);  // soft fpu simulte
             if (msw == lsw)
                 MOVE(mswregpair(r), lswregpair(r));
             else
@@ -315,9 +307,10 @@ namespace nanojit
     void Assembler::asm_ldst64(bool store, Register r, int dr, Register rbase)
     {
 #if !PEDANTIC
-        if (isS16(dr) && isS16(dr+4)) {
+        if (isS16(dr)) {
             if (IsGpReg(r)) {
                 LDSTGPR(store ? OP_SD : OP_LD, r,   dr,   rbase);
+                return;
             }
             else {
                 NanoAssert(cpu_has_fpu);
@@ -325,14 +318,15 @@ namespace nanojit
                 if (cpu_has_lsdc1 && ((dr & 7) == 0)) {
                     // lsdc1 $fr,dr($rbase)
                     LDSTFPR(store ? OP_SDC1 : OP_LDC1, r, dr, rbase);
+                    return;
                 }
-                else {
+                else if(isS16(dr+4)) {
                     // lswc1 $fr,  dr+LSWOFF($rbase)
                     // lswc1 $fr+1,dr+MSWOFF($rbase)
                     LDSTFPR(store ? OP_SWC1 : OP_LWC1, r+1, dr+mswoff(), rbase);
                     LDSTFPR(store ? OP_SWC1 : OP_LWC1, r,   dr+lswoff(), rbase);
+                    return;
                 }
-                return;
             }
         }
 #endif
@@ -1562,16 +1556,20 @@ namespace nanojit
             SLT(cr,ra,rb);
             break;
         case LIR_ltui:
+        case LIR_ltuq:
             SLTU(cr,ra,rb);
             break;
         case LIR_gtui:
+        case LIR_gtuq:
             SLTU(cr,rb,ra);
             break;
         case LIR_leui:
+        case LIR_leuq:
             XORI(cr,cr,1);
             SLTU(cr,rb,ra);
             break;
         case LIR_geui:
+        case LIR_geuq:
             XORI(cr,cr,1);
             SLTU(cr,ra,rb);
             break;
@@ -1826,6 +1824,7 @@ namespace nanojit
                 SLTU(AT, ra, rb);
                 break;
             case LIR_gtui:
+            case LIR_gtuq:
                 if (branchOnFalse)
                     BEQ(AT, ZERO, btarg);
                 else
@@ -1834,6 +1833,7 @@ namespace nanojit
                 SLTU(AT, rb, ra);
                 break;
             case LIR_leui:
+            case LIR_leuq:
                 if (branchOnFalse)
                     BNE(AT, ZERO, btarg);
                 else
@@ -1842,6 +1842,7 @@ namespace nanojit
                 SLTU(AT, rb, ra);
                 break;
             case LIR_geui:
+            case LIR_geuq:
                 if (branchOnFalse)
                     BNE(AT, ZERO, btarg);
                 else
@@ -1904,7 +1905,7 @@ namespace nanojit
             // ori $ra,%lo(targ) # will be omitted if (targ & 0xffff)==0
             // jr $ra
             //  [nop]
-            underrunProtect(4*4); // worst case to prevent underrunProtect from reinvoking asm_j
+            underrunProtect(8*4); // worst case to prevent underrunProtect from reinvoking asm_j
             if (bdelay)
                 NOP();
             JR(RA);

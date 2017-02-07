@@ -131,15 +131,26 @@ namespace nanojit
         FT0 = F1,
         FT1 = F3,
         FT2 = F4,
-        FT3 = F6,
-        FT4 = F8,
-        FT5 = F10,
-        FS0 = F21,
-        FS1 = F23,
-        FS2 = F25,
+        FT3 = F5,
+        FT4 = F6,
+        FT5 = F7,
+        FT6 = F8,
+        FT7 = F9,
+        FT8 = F10,
+        FT9 = F16,
+        FT10 = F18,
+        FT11 = F20,
+        FT12 = F21,
+        FT13 = F22,
+        FT14 = F23,
+        FS0 = F24,
+        FS1 = F25,
+        FS2 = F26,
         FS3 = F27,
-        FS4 = F29,
-        FS5 = F31,
+        FS4 = F28,
+        FS5 = F29,
+        FS6 = F30,
+        FS7 = F31,
 
         UnspecifiedReg        = { 127 },
         deprecated_UnknownReg = { 127 };    // XXX: remove eventually, see bug 538924
@@ -160,7 +171,7 @@ namespace nanojit {
 
     // REQ: Number of callee saved registers
 #ifdef FPCALLEESAVED
-    static const int NumSavedRegs = 14;
+    static const int NumSavedRegs = 16;
 #else
     static const int NumSavedRegs = 8;
 #endif
@@ -170,6 +181,7 @@ namespace nanojit {
 #ifdef FPCALLEESAVED
         REGMASK(FS0) | REGMASK(FS1) | REGMASK(FS2) |
         REGMASK(FS3) | REGMASK(FS4) | REGMASK(FS5) |
+        REGMASK(FS6) | REGMASK(FS7) |
 #endif
         REGMASK(S0) | REGMASK(S1) | REGMASK(S2) | REGMASK(S3) |
         REGMASK(S4) | REGMASK(S5) | REGMASK(S6) | REGMASK(S7);
@@ -189,11 +201,15 @@ namespace nanojit {
 #ifdef FPCALLEESAVED
         REGMASK(FS0) | REGMASK(FS1) | REGMASK(FS2) |
         REGMASK(FS3) | REGMASK(FS4) | REGMASK(FS5) |
+        REGMASK(FS6) | REGMASK(FS7)
 #endif
         REGMASK(FV0) | REGMASK(FV1) |
         REGMASK(FA0) | REGMASK(FA1) | REGMASK(FA2) | REGMASK(FA3) | REGMASK(FA4) | REGMASK(FA5) | REGMASK(FA6) | REGMASK(FA7) |
         REGMASK(FT0) | REGMASK(FT1) | REGMASK(FT2) |
-        REGMASK(FT3) | REGMASK(FT4) | REGMASK(FT5);
+        REGMASK(FT3) | REGMASK(FT4) | REGMASK(FT5) |
+        REGMASK(FT6) | REGMASK(FT7) | REGMASK(FT8) |
+        REGMASK(FT9) | REGMASK(FT10) | REGMASK(FT11) |
+        REGMASK(FT12) | REGMASK(FT13) | REGMASK(FT14);
 
 #define FpDRegs FpRegs
 #define FpSRegs 0x0 // not implemented
