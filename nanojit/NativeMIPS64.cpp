@@ -1640,7 +1640,7 @@ namespace nanojit
                     //   nop
 
                     underrunProtect(4 * 4);             // keep bxx and trampoline together
-
+                    tramp = _nSlot;
                     NOP();                              // delay slot
 
                     // NB trampoline code is emitted in the correct order
@@ -1653,6 +1653,7 @@ namespace nanojit
                     if (uint64_t(targ) >> 32 == 0) {
                         underrunProtect(5 * 4);             // keep bxx and trampoline together
     
+                        tramp = _nSlot;
                         LUI(RA,(uint64_t(targ)>> 16) & 0xffff);         // delay slot
     
                         // NB trampoline code is emitted in the correct order
@@ -1661,6 +1662,7 @@ namespace nanojit
                         trampNOP();                         // trampoline delay slot
                     } else {
                         underrunProtect(7 * 4);
+                        tramp = _nSlot;
                         LUI(RA,(uint64_t(targ)>>32) & 0xffff);
 
                         trampORI(RA, RA, (uint64_t(targ)>>16) & 0xffff);
@@ -1678,7 +1680,7 @@ namespace nanojit
                 // Fixup handled in nPatchBranch
 
                 underrunProtect(7 * 4);                 // keep bxx and trampoline together
-
+                tramp = _nSlot;
                 NOP();                                  // delay slot
 
                 trampNOP();
