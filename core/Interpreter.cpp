@@ -1607,6 +1607,13 @@ FLOAT_ONLY(\
                 a2 = sp[0];
                 sp--;
                 if (IS_BOTH_INTEGER(a1, a2)) {
+#ifndef AVMPLUS_64BIT
+                    if (((a1 & a2 & 0xC0000000) == 0x80000000) || ((a1 & a2 & 0xC0000000) == 0x40000000)) {
+                         i1 = a1 >> 3;
+                         i2 = a2 >> 3;
+                         goto finish_add_i;
+                     }
+#endif // AVMPLUS_64BIT                
                     u1t = a1 ^ kIntptrType;
                     u2t = a2 ^ kIntptrType;
                     u3t = CLAMP_32(u1t + u2t);
