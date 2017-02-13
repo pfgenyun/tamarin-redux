@@ -110,7 +110,7 @@
         function JGFvalidate() {
                 //print("entering JFGvalidate");
                 var refval = new Array(4);
-                refval[0] = 2676692;
+                refval[0] = CONFIG::desktop ? 302532 : 2676692;
                 refval[1] = 29827635;
         refval[2] = 29827635;
         refval[3] = 5158;

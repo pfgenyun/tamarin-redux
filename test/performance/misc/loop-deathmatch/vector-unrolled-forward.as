@@ -7,6 +7,7 @@
 import avmplus.*;
 
 var DESC = "Vector forward int sum unrolled loop, 2048 elements";
+include "../driver.as";
 
 function main()
 {
@@ -26,4 +27,4 @@ function main()
         throw DESC + ": Unexpected result: " + sum;
     print((getTimer() - then) + "ms    " + DESC);
 }
-main();
+TEST(main, "vector-unrolled-forward");

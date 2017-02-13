@@ -8,6 +8,7 @@ import flash.utils.ByteArray;
 import avmplus.*;
 
 var DESC = "ByteArray backward int sum unrolled loop, 2048 elements";
+include "../driver.as";
 
 function main()
 {
@@ -47,4 +48,4 @@ function main()
         throw DESC + ": Unexpected result: " + sum;
     print((getTimer() - then) + "ms    " + DESC);
 }
-main();
+TEST(main, "bytearray-unrolled-backward");
