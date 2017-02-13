@@ -1508,6 +1508,7 @@ namespace nanojit
                     //   nop
 
                     underrunProtect(4 * 4);             // keep bxx and trampoline together
+                    tramp = _nSlot;
 
                     NOP();                              // delay slot
 
@@ -1527,6 +1528,7 @@ namespace nanojit
                     //   nop
 
                     underrunProtect(5 * 4);             // keep bxx and trampoline together
+                    tramp = _nSlot;
 
                     LUI(RA,hi(uint32_t(targ)));         // delay slot
 
@@ -1544,6 +1546,7 @@ namespace nanojit
                 // Fixup handled in nPatchBranch
 
                 underrunProtect(5 * 4);                 // keep bxx and trampoline together
+                tramp = _nSlot;
 
                 NOP();                                  // delay slot
 
