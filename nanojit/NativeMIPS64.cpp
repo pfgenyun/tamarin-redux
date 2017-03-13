@@ -2156,22 +2156,35 @@ namespace nanojit
     void
     Assembler::asm_q2d(LIns* ins)
     {
-        printf("error asm_q2d\n");
-        NanoAssert(false);
+        NanoAssert(cpu_has_fpu);
+        if (cpu_has_fpu) {
+            Register fr = deprecated_prepResultReg(ins, FpRegs);
+            Register v = findRegFor(ins->oprnd1(), GpRegs);
+
+            // dmtc1    $v,$fr
+            // cvt.d.l $fr,$fr
+            CVT_D_L(fr,fr);
+            DMTC1(v,fr);
+        }
+        TAG("asm_q2d(ins=%p{%s})", ins, lirNames[ins->opcode()]);
     }
 
     void
     Assembler::asm_dasq(LIns* ins)
     {
-        printf("error asm_dasq\n");
-        NanoAssert(false);
+        Register rr = deprecated_prepResultReg(ins, GpRegs);
+        Register ra = findRegFor(ins->oprnd1(), FpRegs);
+        DMFC1(rr, ra);
+        TAG("asm_dasq(ins=%p{%s})", ins, lirNames[ins->opcode()]);
     }
 
     void
     Assembler::asm_qasd(LIns* ins)
     {
-        printf("error asm_qasd\n");
-        NanoAssert(false);
+        Register rr = deprecated_prepResultReg(ins, FpRegs);
+        Register ra = findRegFor(ins->oprnd1(), GpRegs);
+        DMTC1(ra, rr);
+        TAG("asm_qasd(ins=%p{%s})", ins, lirNames[ins->opcode()]);
     }
 
     Register

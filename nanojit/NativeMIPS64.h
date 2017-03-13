@@ -857,6 +857,10 @@ namespace nanojit {
     do { count_fpu(); EMIT(F_FORMAT(OP_COP1, FMT_W, FPR(F0), FPR(fs), FPR(fd), COP1_CVTD), \
                            "cvt.d.w %s, %s", fpn(fd), fpn(fs)); } while (0)
 
+#define CVT_D_L(fd, fs)                                                 \
+    do { count_fpu(); EMIT(F_FORMAT(OP_COP1, FMT_L, FPR(F0), FPR(fs), FPR(fd), COP1_CVTD), \
+                           "cvt.d.w %s, %s", fpn(fd), fpn(fs)); } while (0)
+
 #define CVT_S_D(fd, fs)                                                 \
     do { count_fpu(); EMIT(F_FORMAT(OP_COP1, FMT_D, FPR(F0), FPR(fs), FPR(fd), COP1_CVTS), \
                            "cvt.s.d %s, %s", fpn(fd), fpn(fs)); } while (0)
