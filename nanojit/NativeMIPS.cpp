@@ -1367,26 +1367,9 @@ namespace nanojit
             value, lirNames[value->opcode()], dr, base, lirNames[base->opcode()]);
     }
 
-    bool canRematALU(LIns *ins)
-    {
-        // Return true if we can generate code for this instruction that neither
-        // sets CCs, clobbers an input register, nor requires allocating a register.
-        switch (ins->opcode()) {
-            case LIR_addi:
-            case LIR_subi:
-            case LIR_andi:
-            case LIR_ori:
-            case LIR_xori:
-                return ins->oprnd1()->isInReg() && ins->oprnd2()->isImmI();
-            default:
-                ;
-        }
-        return false;
-    }
-
     bool RegAlloc::canRemat(LIns* ins)
     {
-        return ins->isImmI() || ins->isop(LIR_allocp) || ins->isop(LIR_ldi) || canRematALU(ins);;
+        return ins->isop(LIR_allocp);;
     }
 
     void Assembler::asm_restore(LIns *i, Register r)
@@ -1400,9 +1383,6 @@ namespace nanojit
                 ADDU(r, FP, AT);
                 asm_li(AT, d);
             }
-        }
-        else if (i->isImmI()) {
-            asm_li(r, i->immI());
         }
         else {
             d = findMemFor(i);
