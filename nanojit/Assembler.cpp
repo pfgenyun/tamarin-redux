@@ -1383,6 +1383,7 @@ typedef void* (*decode_instructions_ftype) (void* start, void* end,
             // Forward jump to known label.  Need to merge with label's register state.
             unionRegisterState(label->regs);
             asm_branch(branchOnFalse, cond, label->addr);
+            evictAllActiveRegs();
         }
         else {
             // Back edge.

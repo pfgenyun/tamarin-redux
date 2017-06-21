@@ -1490,7 +1490,7 @@ namespace nanojit
 
     bool RegAlloc::canRemat(LIns* ins)
     {
-        return ins->isop(LIR_allocp);
+        return ins->isImmI() || ins->isop(LIR_allocp);
     }
 
     void Assembler::asm_restore(LIns *i, Register r)
@@ -1504,6 +1504,10 @@ namespace nanojit
                 DADDU(r, FP, AT);
                 asm_li(AT, d);
             }
+        } else if (i->isImmI()) {
+            asm_li(r, i->immI());
+        } else if (i->isImmQ()) {
+            asm_li64(r, i->immQ());
         } else {
             d = findMemFor(i);
             if (IsFpReg(r)) {
