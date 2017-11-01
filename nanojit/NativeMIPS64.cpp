@@ -163,6 +163,40 @@ namespace nanojit
 #endif
 #undef _CONST
 
+#define NEED_INSERT_NOP 1
+
+#if (NEED_INSERT_NOP == 1)
+    static int COUNT_OF_LOAD_INSTRS = 0;
+
+    void resetLoadInstrs() {
+        COUNT_OF_LOAD_INSTRS = 0;
+    }
+
+//static int tmap = 0;
+    /* if already 3, need insert 'nop' before this load instruction. */
+    bool checkInstrsAndInsertNOP() {
+        if (COUNT_OF_LOAD_INSTRS == 3) {
+            COUNT_OF_LOAD_INSTRS = 1;  // the next load instruction
+            //printf("insert nop %d \n", ++tmap);
+            return true;
+        } else {
+           COUNT_OF_LOAD_INSTRS++;
+           return false;
+        }
+    }
+
+    /* nonajit may use this load instructions */
+    bool opIsLoad(int op) {
+        return (op == OP_LB) ||
+               (op == OP_LH) ||
+               (op == OP_LW) ||
+               (op == OP_LD) ||
+               (op == OP_LBU) ||
+               (op == OP_LHU) ||
+               (op == OP_LWC1);
+    }
+#endif
+
     /* Support routines */
 
     debug_only (
@@ -191,6 +225,9 @@ namespace nanojit
 
     void Assembler::asm_li32(Register r, int32_t imm)
     {
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         // general case generating a full 32-bit load
         ORI(r, r, imm & 0xffff);
         LUI(r, (imm>>16) & 0xffff);
@@ -199,6 +236,9 @@ namespace nanojit
     void Assembler::asm_li(Register r, int32_t imm)
     {
 #if !PEDANTIC
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         if (isU16(imm)) {
             ORI(r, ZERO, imm);
             return;
@@ -217,6 +257,9 @@ namespace nanojit
 
     void Assembler::asm_liAddress(Register r, int64_t imm)
     {
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         ORI(r, r, imm & 0xffff);
         DSLL(r, r, 16);
         ORI(r, r, (imm>>16) & 0xffff);
@@ -228,8 +271,14 @@ namespace nanojit
     void Assembler::asm_li64(Register r, int64_t imm)
     {
         if (isInS16(imm)) {
+#if (NEED_INSERT_NOP == 1)
+            resetLoadInstrs();
+#endif
             DADDIU(r, ZERO, imm);
         } else if (isInS32(imm)) {
+#if (NEED_INSERT_NOP == 1)
+            resetLoadInstrs();
+#endif
             ORI(r, r, imm & 0xffff);
             LUI(r, (imm>>16) & 0xffff); 
         } else {
@@ -246,16 +295,24 @@ namespace nanojit
             // mtc1 $at,$r          # may use $0 instead of $at
             // li   $at,msw         # iff (msw != 0) && (msw != lsw)
             // mtc1 $at,$(r+1)      # may use $0 instead of $at
-            if (msw == 0)
+#if (NEED_INSERT_NOP == 1)
+            if (checkInstrsAndInsertNOP()) NOP();
+#endif
+            if (msw == 0) {
                 MTHC1(ZERO, r);
+            }
             else {
                 MTHC1(AT, r);
                 // If the MSW & LSW values are different, reload AT
                 if (msw != lsw)
                     asm_li(AT, msw);
             }
-            if (lsw == 0)
+#if (NEED_INSERT_NOP == 1)
+            if (checkInstrsAndInsertNOP()) NOP();
+#endif
+            if (lsw == 0) {
                 MTC1(ZERO, r);
+            }
             else {
                 MTC1(AT, r);
                 asm_li(AT, lsw);
@@ -267,8 +324,12 @@ namespace nanojit
              * li $r.hi, msw   # will be converted to move $f.hi,$f.lo if (msw==lsw)
              */
             NanoAssert(false);  // soft fpu simulte
-            if (msw == lsw)
+            if (msw == lsw) {
+#if (NEED_INSERT_NOP == 1)
+                resetLoadInstrs();
+#endif
                 MOVE(mswregpair(r), lswregpair(r));
+            }
             else
                 asm_li(mswregpair(r), msw);
             asm_li(lswregpair(r), lsw);
@@ -277,6 +338,9 @@ namespace nanojit
 
     void Assembler::asm_move(Register d, Register s)
     {
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         MOVE(d, s);
     }
 
@@ -285,6 +349,12 @@ namespace nanojit
     {
 #if !PEDANTIC
         if (isS16(dr)) {
+#if (NEED_INSERT_NOP == 1)
+            if (!opIsLoad(op)) {
+                resetLoadInstrs();
+            }
+            else if (checkInstrsAndInsertNOP()) NOP();
+#endif
             if (IsGpReg(rt))
                 LDSTGPR(op, rt, dr, rbase);
             else
@@ -296,10 +366,19 @@ namespace nanojit
         // lui AT,hi(d)
         // daddu AT,rbase
         // ldst rt,lo(d)(AT)
+#if (NEED_INSERT_NOP == 1)
+        if (!opIsLoad(op)) {
+            resetLoadInstrs();
+        }
+        else if (checkInstrsAndInsertNOP()) NOP();
+#endif
         if (IsGpReg(rt))
             LDSTGPR(op, rt, lo(dr), AT);
         else
             LDSTFPR(op, rt, lo(dr), AT);
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         DADDU(AT, AT, rbase);
         LUI(AT, hi(dr));
     }
@@ -309,6 +388,13 @@ namespace nanojit
 #if !PEDANTIC
         if (isS16(dr)) {
             if (IsGpReg(r)) {
+#if (NEED_INSERT_NOP == 1)
+                if (store) {
+                    resetLoadInstrs();
+                } else if (checkInstrsAndInsertNOP()) {
+                    NOP();
+                }
+#endif
                 LDSTGPR(store ? OP_SD : OP_LD, r,   dr,   rbase);
                 return;
             }
@@ -317,13 +403,34 @@ namespace nanojit
                 // NanoAssert((dr & 7) == 0);
                 if (cpu_has_lsdc1 && ((dr & 7) == 0)) {
                     // lsdc1 $fr,dr($rbase)
+#if (NEED_INSERT_NOP == 1)
+                    if (store) {
+                        resetLoadInstrs();
+                    } else if (checkInstrsAndInsertNOP()) {
+                        NOP();
+                    }
+#endif
                     LDSTFPR(store ? OP_SDC1 : OP_LDC1, r, dr, rbase);
                     return;
                 }
                 else if(isS16(dr+4)) {
                     // lswc1 $fr,  dr+LSWOFF($rbase)
                     // lswc1 $fr+1,dr+MSWOFF($rbase)
+#if (NEED_INSERT_NOP == 1)
+                    if (store) {
+                        resetLoadInstrs();
+                    } else if (checkInstrsAndInsertNOP()) {
+                        NOP();
+                    }
+#endif
                     LDSTFPR(store ? OP_SWC1 : OP_LWC1, r+1, dr+mswoff(), rbase);
+#if (NEED_INSERT_NOP == 1)
+                    if (store) {
+                        resetLoadInstrs();
+                    } else if (checkInstrsAndInsertNOP()) {
+                        NOP();
+                    }
+#endif
                     LDSTFPR(store ? OP_SWC1 : OP_LWC1, r,   dr+lswoff(), rbase);
                     return;
                 }
@@ -336,7 +443,17 @@ namespace nanojit
             // addu  $at,$rbase
             // ldsw  $r,  %lo(d)($at)
             // ldst  $r+1,%lo(d+4)($at)
+#if (NEED_INSERT_NOP == 1)
+            if (store) {
+                resetLoadInstrs();
+            } else if (checkInstrsAndInsertNOP()) {
+                NOP();
+            }
+#endif
             LDSTGPR(store ? OP_SD : OP_LD, r,   dr & 0xffff, AT);
+#if (NEED_INSERT_NOP == 1)
+            resetLoadInstrs();
+#endif
             DADDU(AT, AT, rbase);
             LUI(AT, (dr>>16) & 0xffff);
         }
@@ -345,17 +462,35 @@ namespace nanojit
             if (cpu_has_lsdxc1) {
                 // li     $at,dr
                 // lsdcx1 $r,$at($rbase)
-                if (store)
+                if (store) {
+#if (NEED_INSERT_NOP == 1)
+                    resetLoadInstrs();
+#endif
                     SDXC1(r, AT, rbase);
-                else
+                }
+                else {
+#if (NEED_INSERT_NOP == 1)
+                    if (checkInstrsAndInsertNOP()) NOP();
+#endif
                     LDXC1(r, AT, rbase);
+                }
                 asm_li(AT, dr);
             }
             else if (cpu_has_lsdc1) {
                 // lui    $at,%hi(dr)
                 // addu   $at,$rbase
                 // lsdc1  $r,%lo(dr)($at)
+#if (NEED_INSERT_NOP == 1)
+                if (store) {
+                    resetLoadInstrs();
+                } else if (checkInstrsAndInsertNOP()) {
+                    NOP();
+                }
+#endif
                 LDSTFPR(store ? OP_SDC1 : OP_LDC1, r, dr & 0xffff, AT);
+#if (NEED_INSERT_NOP == 1)
+                resetLoadInstrs();
+#endif
                 DADDU(AT, AT, rbase);
                 LUI(AT, (dr >> 16) & 0xffff);
             }
@@ -364,8 +499,25 @@ namespace nanojit
                 // addu  $at,$rbase
                 // lswc1 $r,  %lo(d+LSWOFF)($at)
                 // lswc1 $r+1,%lo(d+MSWOFF)($at)
+#if (NEED_INSERT_NOP == 1)
+                if (store) {
+                    resetLoadInstrs();
+                } else if (checkInstrsAndInsertNOP()) {
+                    NOP();
+                }
+#endif
                 LDSTFPR(store ? OP_SWC1 : OP_LWC1, r+1, lo(dr+mswoff()), AT);
+#if (NEED_INSERT_NOP == 1)
+                if (store) {
+                    resetLoadInstrs();
+                } else if (checkInstrsAndInsertNOP()) {
+                    NOP();
+                }
+#endif
                 LDSTFPR(store ? OP_SWC1 : OP_LWC1, r,   lo(dr+lswoff()), AT);
+#if (NEED_INSERT_NOP == 1)
+                resetLoadInstrs();
+#endif
                 DADDU(AT, AT, rbase);
                 LUI(AT, (dr >> 16) & 0xffff);
             }
@@ -378,6 +530,9 @@ namespace nanojit
         NanoAssert(isS16(dr) && isS16(dr+4));
         
         if (value->isImmQ()) {
+#if (NEED_INSERT_NOP == 1)
+            resetLoadInstrs();
+#endif
             SD(AT, dr, rbase);
             asm_li64(AT, value->immQ());
             return;
@@ -391,16 +546,30 @@ namespace nanojit
         // li $at,msw                   # iff (msw != 0) && (msw != lsw)
         // sw $at,off+MSWOFF($rbase)    # may use $0 instead of $at
 
-        if (lsw == 0)
+        if (lsw == 0) {
+#if (NEED_INSERT_NOP == 1)
+            resetLoadInstrs();
+#endif
             SW(ZERO, dr+lswoff(), rbase);
+        }
         else {
+#if (NEED_INSERT_NOP == 1)
+            resetLoadInstrs();
+#endif
             SW(AT, dr+lswoff(), rbase);
             if (msw != lsw)
                 asm_li(AT, lsw);
         }
-        if (msw == 0)
+        if (msw == 0) {
+#if (NEED_INSERT_NOP == 1)
+            resetLoadInstrs();
+#endif
             SW(ZERO, dr+mswoff(), rbase);
+        }
         else {
+#if (NEED_INSERT_NOP == 1)
+            resetLoadInstrs();
+#endif
             SW(AT, dr+mswoff(), rbase);
             asm_li(AT, msw);
         }
@@ -420,14 +589,23 @@ namespace nanojit
                     if (!p->deprecated_hasKnownReg()) {
                         // load it into the arg reg
                         int d = findMemFor(p);
-                        if (p->isop(LIR_allocp))
+                        if (p->isop(LIR_allocp)) {
+#if (NEED_INSERT_NOP == 1)
+                            resetLoadInstrs();
+#endif
                             DADDIU(r, FP, d);
-                        else
+                        }
+                        else {
                             asm_ldst((ty == ARGTYPE_Q )? OP_LD:OP_LW, r, d, FP);
+                        }
                     }
-                    else
+                    else {
                         // it must be in a saved reg
+#if (NEED_INSERT_NOP == 1)
+                        resetLoadInstrs();
+#endif
                         MOVE(r, p->deprecated_getReg());
+                    }
                 }
                 else {
                     // this is the last use, so fine to assign it
@@ -451,6 +629,9 @@ namespace nanojit
             // push it onto the stack.
             if (!cpu_has_fpu || !isF64) {
                 NanoAssert(IsGpReg(rr));
+#if (NEED_INSERT_NOP == 1)
+                resetLoadInstrs();
+#endif
                 SD(rr, stkd, SP);
             }
             else {
@@ -465,15 +646,32 @@ namespace nanojit
             // memory for it and then copy it onto the stack.
             int d = findMemFor(arg);
             if (!isF64) {
+#if (NEED_INSERT_NOP == 1)
+                resetLoadInstrs();
+#endif
                 SD(AT, stkd, SP);
-                if (arg->isop(LIR_allocp))
+                if (arg->isop(LIR_allocp)) {
+#if (NEED_INSERT_NOP == 1)
+                    resetLoadInstrs();
+#endif
                     DADDIU(AT, FP, d);
-                else
+                }
+                else {
+#if (NEED_INSERT_NOP == 1)
+                    if (checkInstrsAndInsertNOP()) NOP();
+#endif
                     LD(AT, d, FP);
+                }
             }
             else {
                 NanoAssert((stkd & 7) == 0);
+#if (NEED_INSERT_NOP == 1)
+                resetLoadInstrs();
+#endif
                 SD(AT, stkd,   SP);
+#if (NEED_INSERT_NOP == 1)
+                if (checkInstrsAndInsertNOP()) NOP();
+#endif
                 LD(AT, d,      FP);
             }
         }
@@ -553,6 +751,9 @@ namespace nanojit
         // add.d   $fr,$fr,$ft
         // 1:
 
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         underrunProtect(6*4);   // keep branch and destination together
         NIns *here = _nIns;
         ADD_D(fr,fr,ft);
@@ -561,6 +762,9 @@ namespace nanojit
         LUI(AT,0x41f0);
         CVT_D_W(fr,ft);            // branch delay slot
         BGEZ(v,here);
+#if (NEED_INSERT_NOP == 1)
+        if (checkInstrsAndInsertNOP()) NOP();
+#endif
         MTC1(v,ft);
 
         TAG("asm_ui2d(ins=%p{%s})", ins, lirNames[ins->opcode()]);
@@ -574,7 +778,13 @@ namespace nanojit
         Register sr = findRegFor(ins->oprnd1(), FpRegs);
         // trunc.w.d $sr,$sr
         // mfc1 $rr,$sr
+#if (NEED_INSERT_NOP == 1)
+        if (checkInstrsAndInsertNOP()) NOP();
+#endif
         MFC1(rr,sr);
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         TRUNC_W_D(sr,sr);
         TAG("asm_d2i(ins=%p{%s})", ins, lirNames[ins->opcode()]);
     }
@@ -655,6 +865,9 @@ namespace nanojit
             Register ra = findRegFor(lhs, FpRegs);
             Register rb = (rhs == lhs) ? ra : findRegFor(rhs, FpRegs & ~rmask(ra));
 
+#if (NEED_INSERT_NOP == 1)
+            resetLoadInstrs();
+#endif
             switch (op) {
             case LIR_addd: ADD_D(rr, ra, rb); break;
             case LIR_subd: SUB_D(rr, ra, rb); break;
@@ -676,6 +889,9 @@ namespace nanojit
             Register sr = ( !lhs->isInReg()
                             ? findRegFor(lhs, FpRegs)
                             : lhs->deprecated_getReg() );
+#if (NEED_INSERT_NOP == 1)
+            resetLoadInstrs();
+#endif
             NEG_D(rr, sr);
         }
         TAG("asm_neg_abs(ins=%p{%s})", ins, lirNames[ins->opcode()]);
@@ -714,8 +930,12 @@ namespace nanojit
         allow &= ~rmask(rr);
         allow &= ~rmask(ra);
 
-        if (ra != rr)
+        if (ra != rr) {
+#if (NEED_INSERT_NOP == 1)
+           resetLoadInstrs();
+#endif
            SLL(rr, ra, 0);
+        }
 
         if (!a->isInReg()) {
            NanoAssert(ra == rr);
@@ -735,6 +955,9 @@ namespace nanojit
         allow &= ~rmask(rr);
         allow &= ~rmask(ra);
 
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         if (ins->isop(LIR_ui2uq)) {
             DSRL32(rr, rr, 0);
             DSLL32(rr, ra, 0);  // set upper 32 bits to zero
@@ -762,9 +985,18 @@ namespace nanojit
             Register    dd = prepareResultReg(ins, GpRegs);
 
             if (isInS16(offset)) {
+#if (NEED_INSERT_NOP == 1)
+                if (checkInstrsAndInsertNOP()) NOP();
+#endif
                 LD(dd, offset, rn);
             } else {
+#if (NEED_INSERT_NOP == 1)
+                if (checkInstrsAndInsertNOP()) NOP();
+#endif
                 LD(dd, 0, AT);
+#if (NEED_INSERT_NOP == 1)
+                resetLoadInstrs();
+#endif
                 DADDU(AT, AT, rn);
                 asm_li32(AT, offset); 
             }
@@ -796,6 +1028,9 @@ namespace nanojit
                 asm_ldst64(false, dd, offset, rn);
                 break;
             case LIR_ldf2d:
+#if (NEED_INSERT_NOP == 1)
+                resetLoadInstrs();
+#endif
                 CVT_D_S(dd, dd);
                 asm_ldst(OP_LWC1, dd, offset, rn);
                 break;
@@ -814,7 +1049,13 @@ namespace nanojit
 
             switch (ins->opcode()) {
             case LIR_ldd:
+#if (NEED_INSERT_NOP == 1)
+                resetLoadInstrs();
+#endif
                 SD(AT, d,   FP);
+#if (NEED_INSERT_NOP == 1)
+                if (checkInstrsAndInsertNOP()) NOP();
+#endif
                 LD(AT, offset,   rn);
                 break;
             case LIR_ldf2d:
@@ -848,6 +1089,9 @@ namespace nanojit
         Register rr = deprecated_prepResultReg(ins, GpRegs);
         LIns *q = ins->oprnd1();
         int d = findMemFor(q);
+#if (NEED_INSERT_NOP == 1)
+        if (checkInstrsAndInsertNOP()) NOP();
+#endif
         LW(rr, d+mswoff(), FP);
         TAG("asm_qhi(ins=%p{%s})", ins, lirNames[ins->opcode()]);
     }
@@ -857,6 +1101,9 @@ namespace nanojit
         Register rr = deprecated_prepResultReg(ins, GpRegs);
         LIns *q = ins->oprnd1();
         int d = findMemFor(q);
+#if (NEED_INSERT_NOP == 1)
+        if (checkInstrsAndInsertNOP()) NOP();
+#endif
         LW(rr, d+lswoff(), FP);
         TAG("asm_qlo(ins=%p{%s})", ins, lirNames[ins->opcode()]);
     }
@@ -868,6 +1115,9 @@ namespace nanojit
         LIns* lo = ins->oprnd1();
         LIns* hi = ins->oprnd2();
 
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         Register r = findRegFor(hi, GpRegs);
         SW(r, d+mswoff(), FP);
         r = findRegFor(lo, GpRegs);             // okay if r gets recycled.
@@ -888,6 +1138,9 @@ namespace nanojit
         // If this is the last use of lhs in reg, we can re-use result reg.
         // Else, lhs already has a register assigned.
         Register ra = !lhs->isInReg() ? findSpecificRegFor(lhs, rr) : lhs->deprecated_getReg();
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         if (op == LIR_noti)
             NOT(rr, ra);
         else
@@ -929,23 +1182,51 @@ namespace nanojit
         }
 
         if (ins->isI() || ins->isQ()) {
-            if (rd == rf)
+            if (rd == rf) {
+#if (NEED_INSERT_NOP == 1)
+                if (checkInstrsAndInsertNOP()) NOP();
+#endif
                 MOVN(rd, rt, AT);
-            else if (rd == rt)
+            }
+            else if (rd == rt) {
+#if (NEED_INSERT_NOP == 1)
+                if (checkInstrsAndInsertNOP()) NOP();
+#endif
                 MOVZ(rd, rf, AT);
+            }
             else {
+#if (NEED_INSERT_NOP == 1)
+                if (checkInstrsAndInsertNOP()) NOP();
+#endif
                 MOVZ(rd, rf, AT);
+#if (NEED_INSERT_NOP == 1)
+                resetLoadInstrs();
+#endif
                 MOVE(rd, rt);
             }
         } else if (ins->isD()) {
             NanoAssert(cpu_has_fpu);
             if (cpu_has_fpu) {
-                if (rd == rf)
+                if (rd == rf) {
+#if (NEED_INSERT_NOP == 1)
+                    if (checkInstrsAndInsertNOP()) NOP();
+#endif
                     MOVT_D(rd, rt, 0);
-                else if (rd == rt)
+                }
+                else if (rd == rt) {
+#if (NEED_INSERT_NOP == 1)
+                    if (checkInstrsAndInsertNOP()) NOP();
+#endif
                     MOVF_D(rd, rf, 0);
+                }
                 else {
+#if (NEED_INSERT_NOP == 1)
+                    if (checkInstrsAndInsertNOP()) NOP();
+#endif
                     MOVF_D(rd, rf, 0);
+#if (NEED_INSERT_NOP == 1)
+                    if (checkInstrsAndInsertNOP()) NOP();
+#endif
                     MOV_D(rd, rt);
                 }
             }
@@ -983,7 +1264,13 @@ namespace nanojit
                 // c.xx.d  $a,$b
                 // li      $r,1
                 // movf    $r,$0,$fcc0
+#if (NEED_INSERT_NOP == 1)
+                if (checkInstrsAndInsertNOP()) NOP();
+#endif
                 MOVF(r, ZERO, 0);
+#if (NEED_INSERT_NOP == 1)
+                resetLoadInstrs();
+#endif
                 ORI(r, ZERO, 1);
             }
             else {
@@ -993,6 +1280,9 @@ namespace nanojit
                 //  li      $r,1
                 // move    $r,$0
                 // 1:
+#if (NEED_INSERT_NOP == 1)
+                resetLoadInstrs();
+#endif
                 NIns *here = _nIns;
                 verbose_only(verbose_outputf("%p:", here);)
                 underrunProtect(3*4);
@@ -1016,7 +1306,13 @@ namespace nanojit
 
             // mtc1    $v,$fr
             // cvt.d.w $fr,$fr
+#if (NEED_INSERT_NOP == 1)
+            resetLoadInstrs();
+#endif
             CVT_D_W(fr,fr);
+#if (NEED_INSERT_NOP == 1)
+            if (checkInstrsAndInsertNOP()) NOP();
+#endif
             MTC1(v,fr);
         }
         TAG("asm_i2d(ins=%p{%s})", ins, lirNames[ins->opcode()]);
@@ -1093,6 +1389,9 @@ namespace nanojit
                 // incoming arg is on stack
                 Register r = deprecated_prepResultReg(ins, GpRegs);
                 int d = FRAMESIZE + a * sizeof(intptr_t);
+#if (NEED_INSERT_NOP == 1)
+                if (checkInstrsAndInsertNOP()) NOP();
+#endif
                 LD(r, d, FP);
             }
         }
@@ -1124,6 +1423,10 @@ namespace nanojit
         NanoAssert(deprecated_isKnownReg(ra));
         allow &= ~rmask(rr);
         allow &= ~rmask(ra);
+
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
 
         if (rhs->isImmI()) {
             int32_t rhsc = rhs->immI();
@@ -1459,9 +1762,15 @@ namespace nanojit
                     // sw $at,dr($rbase)
                     // lw $at,ds+4(FP)
                     // sw $at,dr+4($rbase)
+#if (NEED_INSERT_NOP == 1)
+                    resetLoadInstrs();
+#endif
                     SW(AT, dr+4, rbase);
                     LW(AT, ds+4, FP);
                     SW(AT, dr,   rbase);
+#if (NEED_INSERT_NOP == 1)
+                    if (checkInstrsAndInsertNOP()) NOP();
+#endif
                     LW(AT, ds,   FP);
                 }
                 break;
@@ -1472,6 +1781,9 @@ namespace nanojit
                     Register rbase = getBaseReg(base, dr, GpRegs);
                     Register ft = _allocator.allocTempReg(FpRegs & ~(rmask(fr)));
                     asm_ldst(OP_SWC1, ft, dr, rbase);
+#if (NEED_INSERT_NOP == 1)
+                    resetLoadInstrs();
+#endif
                     CVT_S_D(ft, fr);
                 }
                 else {
@@ -1498,6 +1810,9 @@ namespace nanojit
         int d;
         if (i->isop(LIR_allocp)) {
             d = deprecated_disp(i);
+#if (NEED_INSERT_NOP == 1)
+            resetLoadInstrs();
+#endif
             if (isS16(d))
                 DADDIU(r, FP, d);
             else {
@@ -1528,6 +1843,9 @@ namespace nanojit
         Register ra = findRegFor(a, allow);
         Register rb = (b==a) ? ra : findRegFor(b, allow & ~rmask(ra));
 
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         // FIXME: Use slti if b is small constant
 
         /* Generate the condition code */
@@ -1699,6 +2017,9 @@ namespace nanojit
 
     NIns* Assembler::asm_bxx(bool branchOnFalse, LOpcode condop, Register ra, Register rb, NIns * const targ)
     {
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         NIns *patch = NULL;
         NIns *btarg = asm_branchtarget(targ);
 
@@ -1898,6 +2219,9 @@ namespace nanojit
                 underrunProtect(2*4);    // j + delay
                 NOP();
             }
+#if (NEED_INSERT_NOP == 1)
+            resetLoadInstrs();
+#endif
             J(targ);
         }
         else {
@@ -1947,6 +2271,9 @@ namespace nanojit
     Assembler::asm_nongp_copy(Register dst, Register src)
     {
         NanoAssert ((rmask(dst) & FpRegs) && (rmask(src) & FpRegs));
+#if (NEED_INSERT_NOP == 1)
+        if (checkInstrsAndInsertNOP()) NOP();
+#endif
         MOV_D(dst, src);
         TAG("asm_nongp_copy(dst=%d src=%d)", dst, src);
     }
@@ -1991,6 +2318,9 @@ namespace nanojit
     void 
     Assembler::asm_pushstate(void)
     {
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         SD(RA, 128,  SP);
         SD(FP, 120,  SP);
         SD(FP, 112,  SP);  // sp
@@ -2014,24 +2344,33 @@ namespace nanojit
     void 
     Assembler::asm_popstate(void)
     {
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         DADDIU(SP, SP, 136);
         LD(RA, 128,  SP);
         LD(FP, 120,  SP);
         LD(FP, 112,  SP);  // sp
+        NOP();
         LD(S7, 104,  SP);
         LD(S6, 96,  SP);
         LD(S5, 88,  SP);
+        NOP();
         LD(S4, 80,  SP);
         LD(S3, 72,  SP);
         LD(S2, 64,  SP);
+        NOP();
         LD(S1, 56,  SP);
         LD(S0, 48,  SP);
         LD(A3, 40, SP);
+        NOP();
         LD(A2, 32, SP);
         LD(A1, 24, SP);
         LD(A0, 16, SP);
+        NOP();
         LD(V1, 8,  SP);
         LD(V0, 0,  SP);
+        NOP();
     }
 
     void 
@@ -2043,6 +2382,9 @@ namespace nanojit
     void 
     Assembler::asm_restorepc(void)
     {
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         NOP();
         JR(T9);
         LD(T9, -8, SP);
@@ -2062,6 +2404,9 @@ namespace nanojit
         NIns* skipTarget = _nIns;
         underrunProtect(16 * 4);
 
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         NOP();
         JR(T9);
         asm_liAddress(T9, (int64_t)target);
@@ -2115,6 +2460,9 @@ namespace nanojit
         bool indirect = ci->isIndirect();
 
         // FIXME: Put one of the argument moves into the BDS slot
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
 
         underrunProtect(2*4);    // jalr+delay
         NOP();
@@ -2163,7 +2511,13 @@ namespace nanojit
 
             // dmtc1    $v,$fr
             // cvt.d.l $fr,$fr
+#if (NEED_INSERT_NOP == 1)
+            resetLoadInstrs();
+#endif
             CVT_D_L(fr,fr);
+#if (NEED_INSERT_NOP == 1)
+        if (checkInstrsAndInsertNOP()) NOP();
+#endif
             DMTC1(v,fr);
         }
         TAG("asm_q2d(ins=%p{%s})", ins, lirNames[ins->opcode()]);
@@ -2183,6 +2537,9 @@ namespace nanojit
     {
         Register rr = deprecated_prepResultReg(ins, FpRegs);
         Register ra = findRegFor(ins->oprnd1(), GpRegs);
+#if (NEED_INSERT_NOP == 1)
+        if (checkInstrsAndInsertNOP()) NOP();
+#endif
         DMTC1(ra, rr);
         TAG("asm_qasd(ins=%p{%s})", ins, lirNames[ins->opcode()]);
     }
@@ -2269,6 +2626,9 @@ namespace nanojit
     void
     Assembler::nFragExit(LIns *guard)
     {
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         SideExit *exit = guard->record()->exit;
         Fragment *frag = exit->target;
         bool destKnown = (frag && frag->fragEntry);
@@ -2384,6 +2744,9 @@ namespace nanojit
     NIns*
     Assembler::genPrologue(void)
     {
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         /*
          * Use a non standard fp because we don't know the final framesize until now
          * addiu   $sp,-FRAMESIZE
@@ -2421,6 +2784,9 @@ namespace nanojit
     NIns*
     Assembler::genEpilogue(void)
     {
+#if (NEED_INSERT_NOP == 1)
+        resetLoadInstrs();
+#endif
         /*
          * move    $sp,$fp
          * lw      $fp,FP_OFFSET($sp)
